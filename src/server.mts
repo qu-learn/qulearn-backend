@@ -3,6 +3,9 @@ import cookieParser from 'cookie-parser'
 import logger from 'morgan'
 import cors from 'cors'
 import { testRouter } from './routes/test.mts'
+import { initDb } from './db.mts'
+
+await initDb()
 
 const app = express()
 

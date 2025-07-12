@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express'
+import { TestModel } from '../db.mts';
 
 const testRouter = Router()
 
@@ -7,9 +8,10 @@ type TestOutput = {
     message: string;
 }
 
-testRouter.get('/', (req: Request<TestInput>, res: Response<TestOutput>) => {
+testRouter.get('/', async (req: Request<TestInput>, res: Response<TestOutput>) => {
+    const testMessage = await TestModel.findOne()
     res.json({
-        message: 'Test route is working!',
+        message: testMessage?.testmsg || 'No message found in the database!'
     })
 })
 
