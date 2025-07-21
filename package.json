@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx --watch src/server.mts",
-    "start": "tsx src/server.mts"
+    "start": "pnpm tsx src/server.mts"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
