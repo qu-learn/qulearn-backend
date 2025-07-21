@@ -4,7 +4,8 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "dev": "tsx --watch src/server.mts"
+    "dev": "tsx --watch src/server.mts",
+    "start": "tsx src/server.mts"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
