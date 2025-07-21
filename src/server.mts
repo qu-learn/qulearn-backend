@@ -22,6 +22,14 @@ app.use('/api/v1', api)
 api.use('/auth', authRouter)
 api.use('/users', AuthMiddleware, usersRouter)
 
+import { mockResponse } from '../mock-server-x.mjs'
+api.use((req, res, next) => {
+    if (mockResponse[req.path])
+        res.json(mockResponse[req.path])
+    else
+        next()
+})
+
 api.use((err, req, res, next) => {
     console.error(err.stack || err)
     if (err instanceof APIError) {
