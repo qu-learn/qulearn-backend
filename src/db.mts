@@ -44,7 +44,7 @@ const CourseSchema = new mongoose.Schema({
   status: { type: String, enum: ["draft", "under-review", "published", "rejected"], default: "draft" },
   instructor: {
     userId: mongoose.Types.ObjectId,
-    fullName: String,
+    fullName: String, //todo: remove this
   },
   modules: [ModuleSchema],
   jupyterNotebookUrl: String,
@@ -142,6 +142,10 @@ export const CircuitModel = mongoose.model('Circuit', CircuitSchema)
 export const NetworkModel = mongoose.model('Network', NetworkSchema)
 
 export type User = HydratedDocumentFromSchema<typeof UserSchema>
+export type Course = HydratedDocumentFromSchema<typeof CourseSchema>
+export type GamificationSettings = HydratedDocumentFromSchema<typeof GamificationSettingsSchema>
+export type Circuit = HydratedDocumentFromSchema<typeof CircuitSchema>
+export type Network = HydratedDocumentFromSchema<typeof NetworkSchema>
 
 export async function initDb() {
   await mongoose.connect(
