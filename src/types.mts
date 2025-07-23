@@ -31,7 +31,7 @@ export function userToResponse(user: User): IUser {
 
 export function courseToResponse(course: Course): ICourse {
     return {
-        id: course.id,
+        id: course._id.toString(),
         title: course.title!,
         subtitle: course.subtitle!,
         description: course.description!,
