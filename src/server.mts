@@ -8,6 +8,7 @@ import { authRouter } from './routes/authRouter.mjs'
 import { usersRouter } from './routes/usersRouter.mts'
 import { coursesRouter } from './routes/coursesRouter.mts'
 import { educatorsRouter } from './routes/educatorsRouter.mts'
+import { sysAdminRouter } from './routes/sysAdminRouter.mts'
 
 await initDb()
 
@@ -25,6 +26,7 @@ api.use('/auth', authRouter)
 api.use('/users', usersRouter)
 api.use('/courses', coursesRouter)
 api.use('/educators', educatorsRouter)
+api.use('/sys-admin', sysAdminRouter)
 
 import { mockResponse } from '../mock-server-x.mjs'
 api.use((req, res, next) => {
