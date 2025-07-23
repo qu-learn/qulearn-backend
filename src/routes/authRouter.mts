@@ -44,7 +44,8 @@ function createRoleCheckMiddleware(...roles: Role[]) {
 export const AuthenticatedOnly = AuthMiddleware
 export const StudentOnly = createRoleCheckMiddleware('student')
 export const EducatorOnly = createRoleCheckMiddleware('educator')
-export const AdminOnly = createRoleCheckMiddleware('course-administrator', 'system-administrator')
+export const SysAdminOnly = createRoleCheckMiddleware('system-administrator')
+export const CourseAdminOnly = createRoleCheckMiddleware('course-administrator')
 
 const authRouter = Router()
 
