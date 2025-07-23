@@ -9,6 +9,7 @@ import {
     APIError, Req, Res, userToResponse,
     ILoginRequest, ILoginResponse,
     IRegisterRequest, IRegisterResponse,
+    Role,
 } from '../types.mts'
 
 const JWT_SECRET = 'jQFHpDTJEN0iH1t07gn6qIuV'
@@ -27,6 +28,23 @@ passport.use('jwt', new JwtStrategy({
 }))
 
 export const AuthMiddleware = passport.authenticate('jwt', { session: false })
+
+function createRoleCheckMiddleware(...roles: Role[]) {
+    return (req: Req, res: Res, next: Function) => {
+        AuthMiddleware(req, res, () => {
+            if (!req.user || !roles.includes(req.user.role)) {
+                res.status(403).json({ error: 'Forbidden' })
+            } else {
+                next()
+            }
+        })
+    }
+}
+
+export const AuthenticatedOnly = AuthMiddleware
+export const StudentOnly = createRoleCheckMiddleware('student')
+export const EducatorOnly = createRoleCheckMiddleware('educator')
+export const AdminOnly = createRoleCheckMiddleware('course-administrator', 'system-administrator')
 
 const authRouter = Router()
 

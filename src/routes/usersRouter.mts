@@ -4,10 +4,11 @@ import {
     userToResponse,
     IGetMyProfileResponse,
 } from '../types.mts'
+import { AuthenticatedOnly } from './authRouter.mts'
 
 const usersRouter = Router()
 
-usersRouter.get('/me', async (req: Request, res: Response<IGetMyProfileResponse>) => {
+usersRouter.get('/me', AuthenticatedOnly, async (req: Request, res: Response<IGetMyProfileResponse>) => {
     res.json({
         user: userToResponse(req.user!),
     })
