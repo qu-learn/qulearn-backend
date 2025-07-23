@@ -6,6 +6,7 @@ import { initDb } from './db.mts'
 import passport from 'passport'
 import { APIError } from './types.mts'
 import { usersRouter } from './routes/usersRouter.mts'
+import { sysAdminRouter } from './routes/sysAdminRouter.mts'
 
 await initDb()
 
@@ -21,6 +22,7 @@ app.use('/api/v1', api)
 
 api.use('/auth', authRouter)
 api.use('/users', AuthMiddleware, usersRouter)
+api.use('/sys-admin', AuthMiddleware, sysAdminRouter)
 
 api.use((err, req, res, next) => {
     console.error(err.stack || err)
