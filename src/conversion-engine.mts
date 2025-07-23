@@ -55,12 +55,15 @@ export async function runConversionEngine(jupyterNotebookUrl: string): Promise<I
                 throw new Error('Invalid cell source data');
             }
 
-            const baseTitle = cell.metadata?.title || 'Untitled Lesson';
-            const lessonTitle = `Lesson ${index + 1}: ${baseTitle}`;
+            if (cell.cell_type === 'code') {
+                cell.source = [
+                    "```python\n" + cell.source.join('') + "\n```"
+                ]
+            }
 
             const lesson: ILesson = {
                 id: crypto.randomUUID(),
-                title: lessonTitle,
+                title: cell.metadata?.title || 'Untitled Lesson',
                 content: cell.source.join(''),
             };
 
