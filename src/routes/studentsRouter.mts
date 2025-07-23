@@ -18,7 +18,7 @@ const studentsRouter = Router()
 studentsRouter.get('/me/dashboard', AuthenticatedOnly, async (req: Req, res: Res<IGetMyDashboardResponse>) => {
     const courses = await CourseModel.find({}, {})
         .populate('instructor.userId', 'id fullName')
-        .sort({ title: 1 })
+        .sort({ createdAt: 1 })
     res.json({
         "points": 1,
         "badges": [
