@@ -17,7 +17,7 @@ educatorsRouter.get('/me/courses', EducatorOnly, async (req: Req<void>, res: Res
         'instructor.userId': req.user!.id,
     })
         .populate('instructor.userId', 'id fullName')
-        .sort({ title: 1 })
+        .sort({ createdAt: 1 })
     res.json({
         courses: courses.map(courseToResponse),
     })

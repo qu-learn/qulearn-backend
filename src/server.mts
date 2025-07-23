@@ -13,7 +13,7 @@ await initDb()
 
 const app = express()
 
-app.use(logger('dev'))
+app.use(logger('dev') as any)
 app.use(cors())
 app.use(express.json())
 app.use(passport.initialize())
