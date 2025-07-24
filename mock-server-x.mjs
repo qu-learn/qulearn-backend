@@ -11,7 +11,7 @@ const mockUser = {
 };
 
 const mockCourse1 = {
-    id: "c1",
+    id: "6881086d92d804262ee6536f",
     title: "Quantum Basics",
     subtitle: "Learn the fundamentals",
     description: "Introduction to quantum computing",
@@ -25,7 +25,7 @@ const mockCourse1 = {
 };
 
 const mockCourse2 = {
-    id: "c2",
+    id: "6881086d92d804262ee65370",
     title: "Advanced Quantum Algorithms",
     subtitle: "Master quantum computing algorithms",
     description: "Deep dive into quantum algorithms like Shor's and Grover's algorithms",
@@ -39,7 +39,7 @@ const mockCourse2 = {
 };
 
 const mockCourse3 = {
-    id: "c3",
+    id: "6881086d92d804262ee65371",
     title: "Quantum Cryptography",
     subtitle: "Secure communications with quantum mechanics",
     description: "Learn quantum key distribution and quantum-safe cryptography",
@@ -188,7 +188,7 @@ const mockResponse = {
             { rank: 3, name: "Student C", points: 120 },
         ],
     },
-    "/api/v1/courses/c1": {
+    "/api/v1/courses/6881086d92d804262ee6536f": {
         course: {
             ...mockCourse1,
             modules: [
@@ -220,7 +220,7 @@ const mockResponse = {
             ],
         },
     },
-    "/api/v1/courses/c2": {
+    "/api/v1/courses/6881086d92d804262ee65370": {
         course: {
             ...mockCourse2,
             modules: [
@@ -252,7 +252,7 @@ const mockResponse = {
             ],
         },
     },
-    "/api/v1/courses/c3": {
+    "/api/v1/courses/6881086d92d804262ee65371": {
         course: {
             ...mockCourse3,
             modules: [
@@ -386,7 +386,7 @@ const mockResponse = {
         publishedCoursesCount: 7,
         totalStudents: 120,
     },
-    "/api/v1/courses/c1/analytics": {
+    "/api/v1/courses/6881086d92d804262ee6536f/analytics": {
         enrollmentCount: 25,
         completionRate: 65,
         averageQuizScore: 78,

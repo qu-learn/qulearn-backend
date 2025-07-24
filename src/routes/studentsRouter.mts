@@ -8,6 +8,7 @@ import {
     Req, Res,
     IGetMyDashboardResponse,
     courseToResponse,
+    mockHandler,
 } from '../types.mts'
 import { AuthenticatedOnly } from './authRouter.mts'
 import { CourseModel } from '../db.mts'
@@ -52,5 +53,7 @@ studentsRouter.get('/me/dashboard', AuthenticatedOnly, async (req: Req, res: Res
         "recommendedCourses": [],
     })
 })
+
+studentsRouter.use(mockHandler)
 
 export { studentsRouter }

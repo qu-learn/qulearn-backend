@@ -3,7 +3,7 @@ import logger from 'morgan'
 import cors from 'cors'
 import { initDb } from './db.mts'
 import passport from 'passport'
-import { APIError } from './types.mts'
+import { APIError, mockHandler } from './types.mts'
 import { authRouter } from './routes/authRouter.mjs'
 import { usersRouter } from './routes/usersRouter.mts'
 import { coursesRouter } from './routes/coursesRouter.mts'
@@ -32,14 +32,7 @@ api.use('/sys-admin', sysAdminRouter)
 api.use('/course-admin', courseAdminRouter)
 api.use('/students', studentsRouter)
 
-import { mockResponse } from '../mock-server-x.mjs'
-api.use((req, res, next) => {
-    const x = mockResponse['/api/v1' + req.path]
-    if (x)
-        res.json(x)
-    else
-        next()
-})
+api.use(mockHandler)
 
 api.use((err, req, res, next) => {
     console.error(err.stack || err)

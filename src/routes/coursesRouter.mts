@@ -7,6 +7,7 @@ import {
     IGetCourseByIdResponse,
     IUpdateCourseRequest,
     IUpdateCourseResponse,
+    mockHandler,
     Req,
     Res,
 } from '../types.mts'
@@ -90,5 +91,7 @@ coursesRouter.patch('/:courseId', EducatorOnly, async (req: Req<IUpdateCourseReq
         course: courseToResponse(course),
     })
 })
+
+coursesRouter.use(mockHandler)
 
 export { coursesRouter }

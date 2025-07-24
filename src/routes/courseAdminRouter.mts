@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { IAddCourseAdministratorRequest, IAddCourseAdministratorResponse, IAddEducatorRequest, IAddEducatorResponse, IGetCourseAdministratorsResponse, IGetEducatorsResponse, Req, Res, userToResponse } from "../types.mts";
+import { IAddCourseAdministratorRequest, IAddCourseAdministratorResponse, IAddEducatorRequest, IAddEducatorResponse, IGetCourseAdministratorsResponse, IGetEducatorsResponse, mockHandler, Req, Res, userToResponse } from "../types.mts";
 import { CourseAdminOnly, SysAdminOnly } from "./authRouter.mts";
 import bcrypt from 'bcrypt'
 import { UserModel } from "../db.mts";
@@ -30,5 +30,7 @@ courseAdminRouter.post("/educators", CourseAdminOnly, async (req: Req<IAddEducat
         educator: userToResponse(user),
     })
 })
+
+courseAdminRouter.use(mockHandler)
 
 export { courseAdminRouter };
