@@ -4,6 +4,7 @@ import {
     APIError,
     courseToResponse,
     IGetCoursesResponse,
+    mockHandler,
     Req,
     Res,
 } from '../types.mts'
@@ -22,5 +23,7 @@ educatorsRouter.get('/me/courses', EducatorOnly, async (req: Req<void>, res: Res
         courses: courses.map(courseToResponse),
     })
 })
+
+educatorsRouter.use(mockHandler)
 
 export { educatorsRouter }

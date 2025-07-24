@@ -72,3 +72,11 @@ export function courseToResponse(course: Course): ICourse {
     }
 }
 
+import { mockResponse } from '../mock-server-x.mjs'
+export const mockHandler = (req, res, next) => {
+    const x = mockResponse['/api/v1' + req.path]
+    if (x)
+        res.json(x)
+    else
+        next()
+}

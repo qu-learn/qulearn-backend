@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { IAddCourseAdministratorRequest, IAddCourseAdministratorResponse, IGetCourseAdministratorsResponse, Req, Res, userToResponse } from "../types.mts";
+import { IAddCourseAdministratorRequest, IAddCourseAdministratorResponse, IGetCourseAdministratorsResponse, mockHandler, Req, Res, userToResponse } from "../types.mts";
 import { SysAdminOnly } from "./authRouter.mts";
 import bcrypt from 'bcrypt'
 import { UserModel } from "../db.mts";
@@ -31,5 +31,7 @@ sysAdminRouter.post("/course-admins", SysAdminOnly, async (req: Req<IAddCourseAd
         cAdmin: userToResponse(user),
     })
 })
+
+sysAdminRouter.use(mockHandler)
 
 export { sysAdminRouter };

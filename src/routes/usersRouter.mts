@@ -6,6 +6,7 @@ import {
     IUpdateMyProfileRequest,
     IUpdateMyProfileResponse,
     Req, Res,
+    mockHandler,
 } from '../types.mts'
 import { AuthenticatedOnly } from './authRouter.mts'
 
@@ -31,5 +32,7 @@ usersRouter.patch('/me', AuthenticatedOnly, async (req: Req<IUpdateMyProfileRequ
         user: userToResponse(user),
     })
 })
+
+usersRouter.use(mockHandler)
 
 export { usersRouter }
