@@ -13,6 +13,7 @@ import { courseAdminRouter } from './routes/courseAdminRouter.mts'
 import { studentsRouter } from './routes/studentsRouter.mts'
 import { circuitsRouter } from './routes/circuitsRouter.mts'
 import { networksRouter } from './routes/networksRouter.mts'
+import { achievementsRouter } from './routes/achievementsRouter.mts'
 
 await initDb()
 
@@ -35,6 +36,7 @@ api.use('/course-admin', courseAdminRouter)
 api.use('/students', studentsRouter)
 api.use('/circuits', circuitsRouter)
 api.use('/networks', networksRouter)
+api.use('/achievements', achievementsRouter)
 
 api.use(mockHandler)
 
