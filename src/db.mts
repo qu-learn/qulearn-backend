@@ -54,7 +54,7 @@ const CourseSchema = new mongoose.Schema({
 
 const UserSchema = new mongoose.Schema({
   fullName: { type: String, required: true },
-  email: { type: String, required: true },
+  email: { type: String, unique:true, required: true },
   passwordHash: { type: String, required: true, select: false },
   role: {
     type: String,
@@ -76,6 +76,7 @@ const UserSchema = new mongoose.Schema({
   }],
 
   enrollments: [EnrollmentSchema],
+  status: { type: String, enum: ["active", "suspended", "deactivated", "deleted"], default: "active" },
 })
 
 const GamificationSettingsSchema = new mongoose.Schema({
