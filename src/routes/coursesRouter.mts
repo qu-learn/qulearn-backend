@@ -7,6 +7,8 @@ import {
     IGetCourseByIdResponse,
     IUpdateCourseRequest,
     IUpdateCourseResponse,
+    IUpdateGamificationSettingsRequest,
+    IUpdateGamificationSettingsResponse,
     mockHandler,
     Req,
     Res,
@@ -91,5 +93,27 @@ coursesRouter.patch('/:courseId', EducatorOnly, async (req: Req<IUpdateCourseReq
         course: courseToResponse(course),
     })
 })
+
+coursesRouter.put('/:courseId/gamification', EducatorOnly, async (req: Req<IUpdateGamificationSettingsRequest>, res: Res<IUpdateGamificationSettingsResponse>) => {
+    const courseId = req.params.courseId as string
+    
+    // Verify the course exists and the user is the instructor
+    const course = await CourseModel.findOne({
+        _id: courseId,
+        'instructor.userId': req.user!.id,
+    })
+    
+    if (!course) {
+        throw new APIError(404, 'Course not found or you are not the instructor')
+    }
+    
+    // TODO: Implement gamification settings update logic
+    // For now, return a dummy success response
+    res.json({
+        success: true,
+    })
+})
+
+coursesRouter.use(mockHandler)
 
 export { coursesRouter }
