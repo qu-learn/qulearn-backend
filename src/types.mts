@@ -1,8 +1,9 @@
-export type * from '../../qulearn-frontend/src/utils/types'
+// Re-export frontend shared types and import them for server helpers
+export * from '../../qulearn-frontend/src/utils/types'
+import type { IUser, ICourse } from '../../qulearn-frontend/src/utils/types'
 
 import { Request, Response } from 'express'
 import { User, Course } from './db.mts'
-import { IUser, ICourse } from './types.mts'
 
 export class APIError extends Error {
     name = 'APIError'
@@ -26,6 +27,7 @@ export function userToResponse(user: User): IUser {
         country: user.country || undefined,
         city: user.city || undefined,
         createdAt: user.createdAt.toISOString(),
+        status: user.status,
     }
 }
 
