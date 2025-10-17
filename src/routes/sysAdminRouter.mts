@@ -34,8 +34,14 @@ sysAdminRouter.post("/course-admins", SysAdminOnly, async (req: Req<IAddCourseAd
     if (!data.gender || !['male', 'female', 'other'].includes(data.gender)) {
         throw new APIError(400, 'Gender is required.');
     }
-    if (!data.password || typeof data.password !== 'string' || data.password.length < 6) {
-        throw new APIError(400, 'Password is required and must be at least 6 characters.');
+    if (
+        !data.password ||
+        typeof data.password !== 'string' ||
+        data.password.length < 8 ||
+        !/[A-Za-z]/.test(data.password) ||
+        !/[0-9]/.test(data.password)
+    ) {
+        throw new APIError(400, 'Password is required and must be at least 8 characters long, containing both letters and numbers.');
     }
     const hash = await bcrypt.hash(data.password, 10)
     const user = await UserModel.create({
