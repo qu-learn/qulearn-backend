@@ -209,20 +209,29 @@ courseAdminRouter.get("/dashboard", CourseAdminOnly, async (req: Req<void>, res:
             months.push({ month: monthLabel, count: 0 })
         }
 
-        // scan users' enrollments and count completedAt occurrences by month
-        const users = await UserModel.find({ 'enrollments.completedAt': { $exists: true } }, { enrollments: 1 })
-        for (const u of users) {
-            const enrollments = (u as any).enrollments || []
-            for (const e of enrollments) {
-                if (!e.completedAt) continue
-                const eDate = new Date(e.completedAt)
-                for (const m of months) {
-                    const [monStr, yearStr] = m.month.split(' ')
-                    const mon = new Date(`${monStr} 1, ${yearStr}`).getMonth()
-                    const yr = parseInt(yearStr, 10)
-                    if (eDate.getFullYear() === yr && eDate.getMonth() === mon) m.count++
+        // Use MongoDB aggregation to count completed enrollments per month for the last 6 months
+        const startDate = new Date(now.getFullYear(), now.getMonth() - (monthsBack - 1), 1);
+        const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+        const enrollmentCounts = await UserModel.aggregate([
+            { $unwind: "$enrollments" },
+            { $match: { "enrollments.completedAt": { $gte: startDate, $lt: endDate } } },
+            {
+                $group: {
+                    _id: {
+                        year: { $year: "$enrollments.completedAt" },
+                        month: { $month: "$enrollments.completedAt" }
+                    },
+                    count: { $sum: 1 }
                 }
             }
+        ]);
+        // Map aggregation results to months array
+        for (const m of months) {
+            const [monStr, yearStr] = m.month.split(' ');
+            const mon = new Date(`${monStr} 1, ${yearStr}`).getMonth() + 1; // JS months are 0-based, Mongo $month is 1-based
+            const yr = parseInt(yearStr, 10);
+            const found = enrollmentCounts.find(ec => ec._id.year === yr && ec._id.month === mon);
+            m.count = found ? found.count : 0;
         }
 
         res.json({
