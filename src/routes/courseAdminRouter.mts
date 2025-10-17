@@ -35,7 +35,7 @@ function isValidEmail(email: string) {
 }
 function isStrongPassword(pw: string) {
     // min 8 chars, at least one letter and one number
-    return /(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}/.test(pw)
+    return /^(?=.*[A-Za-z])(?=.*\d).{8,}$/.test(pw)
 }
 function isValidContactNumber(n: string) {
     // allow optional + and 7-15 digits
