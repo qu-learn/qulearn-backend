@@ -101,7 +101,7 @@ studentsRouter.post('/enrollments', StudentOnly, async (req: Req<IEnrollInCourse
 
     res.json({
         enrollment: {
-            course: course ? courseToResponse(course) : ({} as any),
+            course: course ? courseToResponse(course) : null,
             progressPercentage: 0,
         } as IEnrollment
     })
