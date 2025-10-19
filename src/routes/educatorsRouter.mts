@@ -42,7 +42,7 @@ educatorsRouter.get('/me/courses', EducatorOnly, async (req: Req<void>, res: Res
             const s = stats.get(cid)!
             s.count++
             s.history.push({
-                userId: user._id?.toString?.() ?? (user as any)._id,
+                userId: user._id?.toString() ?? 'unknown',
                 fullName: (user as any).fullName,
                 progress: en.progressPercentage ?? 0,
                 completedAt: en.completedAt ? new Date(en.completedAt).toISOString() : undefined,
