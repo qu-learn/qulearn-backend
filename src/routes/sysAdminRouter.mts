@@ -3,8 +3,6 @@ import { IAddCourseAdministratorRequest, IAddCourseAdministratorResponse, IGetCo
 import { SysAdminOnly } from "./authRouter.mts";
 import bcrypt from 'bcrypt'
 import { UserModel } from "../db.mts";
-
-// To get Server Stats
 import os from 'os';
 import checkDiskSpace from 'check-disk-space';
 
@@ -148,7 +146,7 @@ sysAdminRouter.delete("/course-admins/:id", SysAdminOnly, async (req: Req<void, 
 	res.json({ success: true })
 })
 
-// Add this new endpoint for system metrics
+// New endpoint for system metrics
 sysAdminRouter.get("/system-metrics", SysAdminOnly, async (req: Req<void>, res: Res<{
   cpuUsage: number;
   ramUsage: number;
@@ -181,10 +179,10 @@ sysAdminRouter.get("/system-metrics", SysAdminOnly, async (req: Req<void>, res: 
 		const diskSpace = await checkDiskSpace(process.cwd());
 		diskUsage = Math.round(((diskSpace.size - diskSpace.free) / diskSpace.size) * 100);
 	} catch (error) {
-		diskUsage = 45; // Fallback value
+		diskUsage = 0; // Fallback value
 	}
     
-    // Mock active connections (you can implement real connection tracking)
+    // Mock active connections
     const activeConnections = Math.floor(Math.random() * 100) + 300;
     
     res.json({
@@ -197,10 +195,10 @@ sysAdminRouter.get("/system-metrics", SysAdminOnly, async (req: Req<void>, res: 
     console.error('Error fetching system metrics:', error);
     // Return fallback values
     res.json({
-      cpuUsage: 65,
-      ramUsage: 78,
-      diskUsage: 45,
-      activeConnections: 342
+      cpuUsage: 0,
+      ramUsage: 0,
+      diskUsage: 0,
+      activeConnections: 0
     });
   }
 });
