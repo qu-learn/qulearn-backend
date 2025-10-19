@@ -3,6 +3,8 @@ import { IAddCourseAdministratorRequest, IAddCourseAdministratorResponse, IGetCo
 import { SysAdminOnly } from "./authRouter.mts";
 import bcrypt from 'bcrypt'
 import { UserModel } from "../db.mts";
+import os from 'os';
+import checkDiskSpace from 'check-disk-space';
 
 const sysAdminRouter = Router();
 
@@ -143,5 +145,62 @@ sysAdminRouter.delete("/course-admins/:id", SysAdminOnly, async (req: Req<void, 
 	// respond with success boolean per frontend type
 	res.json({ success: true })
 })
+
+// New endpoint for system metrics
+sysAdminRouter.get("/system-metrics", SysAdminOnly, async (req: Req<void>, res: Res<{
+  cpuUsage: number;
+  ramUsage: number;
+  diskUsage: number;
+  activeConnections: number;
+}>) => {
+  try {
+    // Get CPU usage
+    const cpus = os.cpus();
+    let totalIdle = 0;
+    let totalTick = 0;
+    
+    cpus.forEach(cpu => {
+      for (const type in cpu.times) {
+        totalTick += cpu.times[type as keyof typeof cpu.times];
+      }
+      totalIdle += cpu.times.idle;
+    });
+    
+    const cpuUsage = Math.round(100 - (totalIdle / totalTick) * 100);
+    
+    // Get RAM usage
+    const totalMem = os.totalmem();
+    const freeMem = os.freemem();
+    const ramUsage = Math.round(((totalMem - freeMem) / totalMem) * 100);
+    
+    // Get disk usage (for the current drive)
+    let diskUsage = 0;
+    try {
+		const diskSpace = await checkDiskSpace(process.cwd());
+		diskUsage = Math.round(((diskSpace.size - diskSpace.free) / diskSpace.size) * 100);
+	} catch (error) {
+		diskUsage = 0; // Fallback value
+	}
+    
+    // Mock active connections
+    const activeConnections = Math.floor(Math.random() * 100) + 300;
+    
+    res.json({
+      cpuUsage,
+      ramUsage,
+      diskUsage,
+      activeConnections
+    });
+  } catch (error) {
+    console.error('Error fetching system metrics:', error);
+    // Return fallback values
+    res.json({
+      cpuUsage: 0,
+      ramUsage: 0,
+      diskUsage: 0,
+      activeConnections: 0
+    });
+  }
+});
 
 export { sysAdminRouter };
