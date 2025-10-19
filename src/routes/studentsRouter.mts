@@ -89,11 +89,12 @@ studentsRouter.post('/enrollments', StudentOnly, async (req: Req<IEnrollInCourse
 
     // prevent duplicate enrollment
     const already = user.enrollments?.some(e => e.courseId?.toString() === courseId)
-    if (!already) {
-        user.enrollments = user.enrollments || []
-        user.enrollments.push({ courseId, progressPercentage: 0 })
-        await user.save()
+    if (already) {
+        throw new APIError(400, 'Already enrolled in this course')
     }
+    user.enrollments = user.enrollments || []
+    user.enrollments.push({ courseId, progressPercentage: 0 })
+    await user.save()
 
     const course = await CourseModel.findById(courseId)
         .populate('instructor.userId', 'id fullName')
