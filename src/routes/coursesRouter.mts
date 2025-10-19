@@ -92,6 +92,4 @@ coursesRouter.patch('/:courseId', EducatorOnly, async (req: Req<IUpdateCourseReq
     })
 })
 
-coursesRouter.use(mockHandler)
-
 export { coursesRouter }
