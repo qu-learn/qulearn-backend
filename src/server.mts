@@ -11,6 +11,8 @@ import { educatorsRouter } from './routes/educatorsRouter.mts'
 import { sysAdminRouter } from './routes/sysAdminRouter.mts'
 import { courseAdminRouter } from './routes/courseAdminRouter.mts'
 import { studentsRouter } from './routes/studentsRouter.mts'
+import { circuitsRouter } from './routes/circuitsRouter.mts'
+import { networksRouter } from './routes/networksRouter.mts'
 
 await initDb()
 
@@ -31,6 +33,8 @@ api.use('/educators', educatorsRouter)
 api.use('/sys-admin', sysAdminRouter)
 api.use('/course-admin', courseAdminRouter)
 api.use('/students', studentsRouter)
+api.use('/circuits', circuitsRouter)
+api.use('/networks', networksRouter)
 
 api.use(mockHandler)
 

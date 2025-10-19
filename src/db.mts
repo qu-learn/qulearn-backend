@@ -98,17 +98,7 @@ const CircuitSchema = new mongoose.Schema({
   id: String,
   userId: mongoose.Types.ObjectId,
   name: String,
-  configuration: {
-    gates: [{
-      id: String,
-      type: String,
-      position: { x: Number, y: Number },
-      qubit: Number,
-      controlQubit: Number,
-    }],
-    qubits: Number,
-    results: [Number],
-  },
+  configuration: mongoose.Schema.Types.Mixed,
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
 })
@@ -117,21 +107,7 @@ const NetworkSchema = new mongoose.Schema({
   id: String,
   userId: mongoose.Types.ObjectId,
   name: String,
-  configuration: {
-    nodes: [{
-      id: String,
-      position: { x: Number, y: Number },
-      type: { type: String, enum: ["quantum", "classical"] },
-      label: String,
-    }],
-    connections: [{
-      id: String,
-      from: String,
-      to: String,
-      type: { type: String, enum: ["quantum", "classical"] },
-    }],
-    eprPairs: [{ nodeA: String, nodeB: String }],
-  },
+  configuration: mongoose.Schema.Types.Mixed,
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
 })
