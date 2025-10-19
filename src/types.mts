@@ -22,6 +22,9 @@ export function userToResponse(user: User): IUser {
         id: user.id,
         fullName: user.fullName,
         email: user.email,
+        bio: user.bio || undefined,
+        certName: user.certName || undefined,
+        contactNumber: user.contactNumber || undefined,
         role: user.role,
         avatarUrl: user.avatarUrl || undefined,
         country: user.country || undefined,
@@ -31,7 +34,7 @@ export function userToResponse(user: User): IUser {
     }
 }
 
-export function courseToResponse(course: Course): ICourse {
+export function courseToResponse(course: Course, enrollments?: number, enrollmentHistory?: any[]): ICourse {
     return {
         id: course._id.toString(),
         title: course.title!,
@@ -71,6 +74,8 @@ export function courseToResponse(course: Course): ICourse {
                 networkId: lesson.networkId?.toString()!,
             })),
         })),
+        enrollments,
+        enrollmentHistory,
     }
 }
 
