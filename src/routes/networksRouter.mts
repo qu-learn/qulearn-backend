@@ -68,8 +68,8 @@ networksRouter.get('/:id', AuthenticatedOnly, async (req: Req<void>, res: Res) =
     })
 })
 
-// PUT /api/v1/networks/:id - Update a network
-networksRouter.put('/:id', AuthenticatedOnly, async (req: Req<IUpdateNetworkRequest>, res: Res) => {
+// PATCH /api/v1/networks/:id - Update a network
+networksRouter.patch('/:id', AuthenticatedOnly, async (req: Req<IUpdateNetworkRequest>, res: Res) => {
     const userId = req.user!.id
     const networkId = req.params.id
     

@@ -49,8 +49,8 @@ circuitsRouter.get('/:id', AuthenticatedOnly, async (req: Req<void>, res: Res) =
     })
 })
 
-// PUT /api/v1/circuits/:id - Update a circuit
-circuitsRouter.put('/:id', AuthenticatedOnly, async (req: Req<IUpdateCircuitRequest>, res: Res) => {
+// PATCH /api/v1/circuits/:id - Update a circuit
+circuitsRouter.patch('/:id', AuthenticatedOnly, async (req: Req<IUpdateCircuitRequest>, res: Res) => {
     const userId = req.user!.id
     const circuitId = req.params.id
 
