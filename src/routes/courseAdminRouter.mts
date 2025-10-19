@@ -272,7 +272,38 @@ courseAdminRouter.get("/users", CourseAdminOnly, async (req: Req<void, any, IGet
 courseAdminRouter.get("/courses", CourseAdminOnly, async (req: Req<void>, res: Res<IGetCourseAdminCoursesResponse>, next) => {
     try {
         const courses = await CourseModel.find({})
-        res.json({ courses: courses.map(courseToResponse) })
+
+        // Build enrollment stats for these courses
+        const courseIds = courses.map(c => c._id.toString())
+        const usersWithEnrollments = await UserModel.find(
+            { 'enrollments.courseId': { $in: courseIds } },
+            'fullName enrollments'
+        ).lean()
+
+        const stats = new Map<string, { count: number; history: any[] }>()
+        for (const cid of courseIds) stats.set(cid, { count: 0, history: [] })
+
+        for (const user of usersWithEnrollments) {
+            if (!user.enrollments) continue
+            for (const en of user.enrollments) {
+                if (!en || !en.courseId) continue
+                const cid = en.courseId.toString()
+                if (!stats.has(cid)) continue
+                const s = stats.get(cid)!
+                s.count++
+                s.history.push({
+                    userId: user._id?.toString?.() ?? (user as any)._id,
+                    fullName: (user as any).fullName,
+                    progress: en.progressPercentage ?? 0,
+                    completedAt: en.completedAt ? new Date(en.completedAt).toISOString() : undefined,
+                })
+            }
+        }
+
+        res.json({ courses: courses.map(course => {
+            const s = stats.get(course._id.toString()) || { count: 0, history: [] }
+            return courseToResponse(course, s.count, s.history)
+        }) })
     } catch (err) {
         next(err)
     }

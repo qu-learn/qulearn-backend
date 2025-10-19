@@ -31,7 +31,7 @@ export function userToResponse(user: User): IUser {
     }
 }
 
-export function courseToResponse(course: Course): ICourse {
+export function courseToResponse(course: Course, enrollments?: number, enrollmentHistory?: any[]): ICourse {
     return {
         id: course._id.toString(),
         title: course.title!,
@@ -71,6 +71,8 @@ export function courseToResponse(course: Course): ICourse {
                 networkId: lesson.networkId?.toString()!,
             })),
         })),
+        enrollments,
+        enrollmentHistory,
     }
 }
 
