@@ -34,7 +34,7 @@ studentsRouter.get('/me/dashboard', AuthenticatedOnly, async (req: Req, res: Res
             ? await CourseModel.findById(enr.courseId).populate('instructor.userId', 'id fullName')
             : null
         return {
-            course: course ? courseToResponse(course) : ({} as any),
+            course: course ? courseToResponse(course) : null,
             progressPercentage: enr.progressPercentage || 0,
         }
     }))
