@@ -193,7 +193,7 @@ courseAdminRouter.delete("/educators/:educatorId", CourseAdminOnly, async (req: 
 })
 
 // New: course-admin dashboard
-courseAdminRouter.get("/dashboard", CourseAdminOnly, async (req: Req<void>, res: Res<IGetCourseAdminDashboardResponse>, next) => {
+courseAdminRouter.get("/me/dashboard", CourseAdminOnly, async (req: Req<void>, res: Res<IGetCourseAdminDashboardResponse>, next) => {
     try {
         const totalUsers = await UserModel.countDocuments({})
         const activeCourses = await CourseModel.countDocuments({ status: 'published' })
