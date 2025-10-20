@@ -125,6 +125,8 @@ educatorsRouter.get(
         let totalEnrolled = 0
         let totalCompleted = 0
         let sumProgress = 0
+        let totalQuizScore = 0
+        let totalQuizAttempts = 0
         const students: Array<{
             studentId: string
             studentName?: string
@@ -159,10 +161,62 @@ educatorsRouter.get(
                     studentName: (user as any).fullName,
                     progress,
                 })
+
+                // Aggregate quiz attempt scores from this enrollment (if any)
+                if (en.QuizAttempts && Array.isArray(en.QuizAttempts)) {
+                    for (const attempt of en.QuizAttempts) {
+                        if (attempt && typeof attempt.score === 'number') {
+                            totalQuizScore += attempt.score
+                            totalQuizAttempts++
+                        }
+                    }
+                }
             }
         }
 
         const averageProgress = totalEnrolled ? Math.round((sumProgress / totalEnrolled) * 100) / 100 : 0
+        const averageQuizScore = totalQuizAttempts ? Math.round((totalQuizScore / totalQuizAttempts) * 100) / 100 : 0
+
+        // --- Build per-quiz average scores for quizzes in this course ---
+        const quizMap = new Map<string, { title?: string; totalScore: number; attempts: number }>()
+
+        // Collect quizzes from course structure (use quiz._id or lesson id as key)
+        for (const [mIdx, module] of (course.modules || []).entries()) {
+            for (const [lIdx, lesson] of (module.lessons || []).entries()) {
+                if (!lesson || !lesson.quiz) continue
+                const quizObj: any = lesson.quiz
+                const key = (quizObj._id && quizObj._id.toString) ? quizObj._id.toString() : (lesson.id ?? (lesson as any)._id?.toString() ?? `${courseId}:${mIdx}:${lIdx}`)
+                const title = quizObj.title || lesson.title || `Quiz ${lIdx + 1}`
+                quizMap.set(key, { title, totalScore: 0, attempts: 0 })
+            }
+        }
+
+        // Aggregate scores per quiz from users' enrollments for this course
+        for (const user of users) {
+            if (!user.enrollments) continue
+            for (const en of user.enrollments) {
+                if (!en || en.courseId?.toString() !== courseId) continue
+                if (!en.QuizAttempts || !Array.isArray(en.QuizAttempts)) continue
+                for (const attempt of en.QuizAttempts) {
+                    if (!attempt || typeof attempt.score !== 'number') continue
+                    const attemptQuizId = attempt.quizId && attempt.quizId.toString ? attempt.quizId.toString() : null
+                    if (!attemptQuizId) continue
+                    // if quiz was listed in course structure, accumulate there; otherwise create a key entry
+                    if (!quizMap.has(attemptQuizId)) {
+                        quizMap.set(attemptQuizId, { title: undefined, totalScore: 0, attempts: 0 })
+                    }
+                    const entry = quizMap.get(attemptQuizId)!
+                    entry.totalScore += attempt.score
+                    entry.attempts += 1
+                }
+            }
+        }
+
+        const averageQuizScorePerQuiz = Array.from(quizMap.entries()).map(([quizId, { title, totalScore, attempts }]) => ({
+            quizId,
+            quizTitle: title || "",
+            averageScore: attempts ? Math.round((totalScore / attempts) * 100) / 100 : 0,
+        }))
 
         res.json({
             courseId: course._id.toString(),
@@ -171,7 +225,8 @@ educatorsRouter.get(
             totalCompleted,
             studentProgress: studentsProgress,
             completionRate: averageProgress,
-            averageQuizScore: 67, // Placeholder for future quiz analytics
+            averageQuizScore,
+            averageQuizScorePerQuiz,
         })
     }
 )

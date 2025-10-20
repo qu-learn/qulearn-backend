@@ -1,4 +1,5 @@
 import { Router } from 'express'
+import mongoose from 'mongoose'
 
 import {
     APIError,
@@ -21,9 +22,9 @@ import { CourseModel, User, UserModel } from '../db.mts'
 import { EducatorOnly, AuthenticatedOnly } from './authRouter.mts'
 import { runConversionEngine } from '../conversion-engine.mts'
 import { calculateQuizScore, awardPointsForQuiz, markLessonCompleted } from '../gamification-engine.mts'
-
+ 
 const coursesRouter = Router()
-
+ 
 async function createCourseFromRequest(request: ICreateCourseRequest, user: User) {
     if (request.jupyterNotebookUrl) {
         try {
@@ -168,6 +169,9 @@ coursesRouter.post('/:courseId/lessons/:lessonId/quiz/submit', AuthenticatedOnly
         throw new APIError(404, 'Quiz not found for this lesson')
     }
 
+    console.log('Found quiz:', quiz)
+    console.error('Submitted answers:', req.body.answers)
+
     // Calculate quiz score
     const result = calculateQuizScore(quiz.questions, req.body.answers)
 
@@ -176,14 +180,51 @@ coursesRouter.post('/:courseId/lessons/:lessonId/quiz/submit', AuthenticatedOnly
     if (user) {
         // Increment quiz counter
         user.quizzesAnswered = (user.quizzesAnswered as number || 0) + 1
-        
+
+        // Build quiz attempt record
+        const quizAttempt = {
+            quizId: quiz._id || null,
+            answers: req.body.answers,
+            score: result.score,
+            attemptedAt: new Date(),
+        }
+
+        // Ensure enrollments array exists
+        user.enrollments = user.enrollments || []
+
+        // Try to find the enrollment for this course
+        const enrollment = (user.enrollments as any[]).find(e => {
+            try {
+                return e.courseId?.toString() === courseId
+            } catch {
+                return false
+            }
+        })
+
+        if (enrollment) {
+            // Ensure QuizAttempts exists on the enrollment and push the attempt
+            enrollment.QuizAttempts = enrollment.QuizAttempts || []
+            enrollment.QuizAttempts.push(quizAttempt)
+        } else {
+            // If the user isn't enrolled (unlikely), create a lightweight enrollment entry and store the attempt
+            (user.enrollments as any[]).push({
+                courseId: mongoose.Types.ObjectId(courseId),
+                progressPercentage: 0,
+                enrolledAt: new Date(),
+                QuizAttempts: [quizAttempt],
+            })
+        }
+
         // Award points based on score
         await awardPointsForQuiz(user, course, result.score)
-        
+
         // Mark lesson as completed if quiz passed (60% or higher)
         if (result.isPassed) {
             await markLessonCompleted(user, courseId, lessonId)
         }
+
+        // Persist user changes (quizzesAnswered and saved attempts)
+        await user.save()
     }
 
     res.json(result)
