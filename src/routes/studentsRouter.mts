@@ -15,6 +15,9 @@ import {
     IGetCoursesResponse,
     IEnrollment,
     APIError, // added
+    IGetCourseByIdResponse, // added
+    IMarkLessonCompleteRequest, // added
+    IMarkLessonCompleteResponse, // added
 } from '../types.mts'
 import { AuthenticatedOnly, StudentOnly } from './authRouter.mts'
 import { CourseModel, UserModel } from '../db.mts'
@@ -23,7 +26,7 @@ import { getDashboardData } from '../gamification-engine.mts'
 const studentsRouter = Router()
 
 
-studentsRouter.get('/me/dashboard', AuthenticatedOnly, async (req: Req, res: Res<IGetMyDashboardResponse>) => {
+studentsRouter.get('/me/dashboard', StudentOnly, async (req: Req, res: Res<IGetMyDashboardResponse>) => {
     const userId = (req as any).user?.id
     if (!userId) throw new APIError(401, 'Unauthorized')
 
@@ -110,6 +113,99 @@ studentsRouter.get('/me/enrollments', StudentOnly, async (req: Req, res: Res<IGe
     }))
 
     res.json({ enrollments })
+})
+
+// Get enrolled course by id for authenticated student
+studentsRouter.get('/courses/:courseId', StudentOnly, async (req: Req, res: Res<IGetCourseByIdResponse>) => {
+    const userId = (req as any).user?.id
+    if (!userId) throw new APIError(401, 'Unauthorized')
+
+    const { courseId } = req.params
+    if (!courseId) throw new APIError(400, 'Course ID required')
+
+    const user = await UserModel.findById(userId)
+    if (!user) throw new APIError(404, 'User not found')
+
+    const enrollment = (user.enrollments || []).find(e => e.courseId?.toString() === courseId)
+    if (!enrollment) throw new APIError(403, 'Not enrolled in this course')
+
+    const course = await CourseModel.findById(courseId)
+        .populate('instructor.userId', 'id fullName')
+
+    if (!course) throw new APIError(404, 'Course not found')
+
+    const completion: IEnrollment = {
+        progressPercentage: enrollment.progressPercentage || 0,
+        completedAt: enrollment.completedAt ? enrollment.completedAt.toISOString() : undefined,
+        completions: (enrollment as any).completions || undefined,
+        QuizAttempts: (enrollment as any).QuizAttempts || undefined,
+    } as unknown as IEnrollment
+
+    res.json({
+        course: courseToResponse(course),
+        completion,
+    })
+})
+
+// Mark a lesson complete for an enrolled student
+studentsRouter.post('/enrollments/:courseId/modules/:moduleId/lessons/:lessonId/complete', StudentOnly, async (req: Req<IMarkLessonCompleteRequest>, res: Res<IMarkLessonCompleteResponse>) => {
+    const userId = (req as any).user?.id
+    if (!userId) throw new APIError(401, 'Unauthorized')
+
+    const { courseId, moduleId, lessonId } = req.params as any
+    if (!courseId || !moduleId || !lessonId) throw new APIError(400, 'courseId, moduleId and lessonId are required')
+
+    const user = await UserModel.findById(userId)
+    if (!user) throw new APIError(404, 'User not found')
+
+    const enrollment = (user.enrollments || []).find(e => e.courseId?.toString() === courseId)
+    if (!enrollment) throw new APIError(403, 'Not enrolled in this course')
+
+    const course = await CourseModel.findById(courseId)
+    if (!course) throw new APIError(404, 'Course not found')
+
+    // ensure completions structure
+    enrollment.completions = enrollment.completions || []
+
+    // find or create module completion entry
+    let modComp = enrollment.completions.find((m: any) => m.moduleId === moduleId)
+    if (!modComp) {
+        modComp = { moduleId, lessonIds: [] }
+        enrollment.completions.push(modComp)
+    }
+
+    // avoid duplicate lesson completion
+    const existing = (modComp.lessonIds || []).some((l: any) => l.lessonId === lessonId)
+    if (!existing) {
+        modComp.lessonIds = modComp.lessonIds || []
+        modComp.lessonIds.push({ lessonId, completedAt: req.body?.completedAt ? new Date(req.body.completedAt) : new Date() })
+    }
+
+    // recalculate completed lessons count and total lessons in course
+    const totalLessons = (course.modules || []).reduce((sum, m) => sum + ((m.lessons || []).length || 0), 0)
+    const completedLessonIds = new Set<string>();
+    (enrollment.completions || []).forEach((m: any) => {
+        (m.lessonIds || []).forEach((l: any) => completedLessonIds.add(l.lessonId))
+    })
+    const completedCount = completedLessonIds.size
+    enrollment.progressPercentage = totalLessons > 0 ? Math.round((completedCount / totalLessons) * 100) : 0
+
+    // if all lessons completed, set completedAt
+    if (totalLessons > 0 && completedCount >= totalLessons && !enrollment.completedAt) {
+        enrollment.completedAt = new Date()
+    }
+
+    await user.save()
+
+    const enrollmentResp: IEnrollment = {
+        course: courseToResponse(course),
+        progressPercentage: enrollment.progressPercentage || 0,
+        completedAt: enrollment.completedAt ? enrollment.completedAt.toISOString() : undefined,
+        completions: enrollment.completions,
+        QuizAttempts: (enrollment as any).QuizAttempts || undefined,
+    } as unknown as IEnrollment
+
+    res.json({ enrollment: enrollmentResp })
 })
 
 export { studentsRouter }

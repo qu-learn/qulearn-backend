@@ -5,6 +5,8 @@ import {
     courseToResponse,
     ICreateCourseRequest, ICreateCourseResponse,
     IGetCourseByIdResponse,
+    IGetCoursesNoModulesResponse,
+    IGetCoursesResponse,
     IUpdateCourseRequest,
     IUpdateCourseResponse,
     IUpdateGamificationSettingsRequest,
@@ -47,14 +49,16 @@ async function createCourseFromRequest(request: ICreateCourseRequest, user: User
     }
 }
 
-/*coursesRouter.get('/', async (req: Req<void>, res: Res<IGetCoursesResponse>) => {
-    const courses = await CourseModel.find({ status: 'published' }, { modules: 0 })
+coursesRouter.get('/', async (req: Req<void>, res: Res<IGetCoursesNoModulesResponse>) => {
+    const courses = await CourseModel.find({ status: 'published' })
         .populate('instructor.userId', 'id fullName')
         .sort({ title: 1 })
+        .lean()
+
     res.json({
-        courses: courses.map(courseToResponse),
+        courses: courses.map((c) => courseToResponse({ ...c, modules: [] })),
     })
-})*/
+})
 
 coursesRouter.get('/:courseId', async (req: Req<void>, res: Res<IGetCourseByIdResponse>) => {
     const courseId = req.params.courseId as string
@@ -71,7 +75,7 @@ coursesRouter.post('/', EducatorOnly, async (req: Req<ICreateCourseRequest>, res
     const courseData = await createCourseFromRequest(req.body, req.user!)
     const course = await CourseModel.create({
         ...courseData,
-        status: 'draft',
+        status: 'under-review',
     })
     res.json({
         course: courseToResponse(course),
