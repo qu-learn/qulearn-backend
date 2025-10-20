@@ -170,6 +170,8 @@ courseAdminRouter.patch("/educators/:educatorId", CourseAdminOnly, async (req: R
         // Do not allow role changes via this endpoint; enforce educator role
         updates.role = 'educator'
 
+        console.log("Updating educator", educatorId, "with", updates)
+
         const updated = await UserModel.findOneAndUpdate(
             { _id: educatorId, role: 'educator' },
             updates,
