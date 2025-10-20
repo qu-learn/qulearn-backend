@@ -170,6 +170,8 @@ courseAdminRouter.patch("/educators/:educatorId", CourseAdminOnly, async (req: R
         // Do not allow role changes via this endpoint; enforce educator role
         updates.role = 'educator'
 
+        console.log("Updating educator", educatorId, "with", updates)
+
         const updated = await UserModel.findOneAndUpdate(
             { _id: educatorId, role: 'educator' },
             updates,
@@ -280,8 +282,9 @@ courseAdminRouter.get("/courses", CourseAdminOnly, async (req: Req<void>, res: R
             'fullName enrollments'
         ).lean()
 
-        const stats = new Map<string, { count: number; history: any[] }>()
-        for (const cid of courseIds) stats.set(cid, { count: 0, history: [] })
+        // Track total enrollments count, history and completion sum/count for averaging
+        const stats = new Map<string, { count: number; history: any[]; completionSum: number; completionCount: number }>()
+        for (const cid of courseIds) stats.set(cid, { count: 0, history: [], completionSum: 0, completionCount: 0 })
 
         for (const user of usersWithEnrollments) {
             if (!user.enrollments) continue
@@ -291,6 +294,11 @@ courseAdminRouter.get("/courses", CourseAdminOnly, async (req: Req<void>, res: R
                 if (!stats.has(cid)) continue
                 const s = stats.get(cid)!
                 s.count++
+                // accumulate for average
+                if (typeof en.progressPercentage === 'number') {
+                    s.completionSum += en.progressPercentage
+                    s.completionCount += 1
+                }
                 s.history.push({
                     userId: user._id ? user._id.toString() : 'unknown',
                     fullName: (user as any).fullName,
@@ -300,10 +308,17 @@ courseAdminRouter.get("/courses", CourseAdminOnly, async (req: Req<void>, res: R
             }
         }
 
-        res.json({ courses: courses.map(course => {
-            const s = stats.get(course._id.toString()) || { count: 0, history: [] }
-            return courseToResponse(course, s.count, s.history)
-        }) })
+        // Build response with avgCompletionRate per course
+        res.json({
+            courses: courses.map(course => {
+                const s = stats.get(course._id.toString()) || { count: 0, history: [], completionSum: 0, completionCount: 0 }
+                const avg = s.completionCount > 0 ? (s.completionSum / s.completionCount) : 0
+                return {
+                    course: courseToResponse(course, s.count, s.history),
+                    avgCompletionRate: Math.round(avg * 100) / 100 // round to 2 decimals
+                }
+            })
+        })
     } catch (err) {
         next(err)
     }
