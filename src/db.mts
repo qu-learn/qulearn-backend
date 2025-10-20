@@ -1,4 +1,4 @@
-import mongoose from 'mongoose'
+import mongoose, { Mongoose, Schema } from 'mongoose'
 import { HydratedDocumentFromSchema } from 'mongoose'
 
 const QuestionSchema = new mongoose.Schema({
@@ -27,29 +27,35 @@ const ModuleSchema = new mongoose.Schema({
   lessons: [LessonSchema],
 })
 
-const EnrollmentSchema = new mongoose.Schema({
-  courseId: String,
+const LessonCompletionSchema = new Schema({
+  lessonId: { type: Schema.Types.ObjectId, ref: "Lesson", required: true },
+  completedAt: { type: Date, default: Date.now },
+}, { _id: false });
+
+const ModuleCompletionSchema = new Schema({
+  moduleId: { type: Schema.Types.ObjectId, ref: "Module", required: true },
+  lessonIds: [LessonCompletionSchema],
+}, { _id: false });
+
+const QuizAnswerSchema = new Schema({
+  questionId: { type: Schema.Types.ObjectId, ref: "Question", required: true },
+  selectedOptions: [String],
+}, { _id: false });
+
+const QuizAttemptSchema = new Schema({
+  quizId: { type: Schema.Types.ObjectId, ref: "Quiz", required: true },
+  answers: [QuizAnswerSchema],
+  score: Number,
+  attemptedAt: { type: Date, default: Date.now },
+}, { _id: false });
+
+const EnrollmentSchema = new Schema({
+  courseId: { type: Schema.Types.ObjectId, ref: "Course", required: true },
   progressPercentage: { type: Number, default: 0 },
   completedAt: Date,
-  completions: [
-    {
-      moduleId: String,
-      lessonIds: [{
-        lessonId: String,
-        completedAt: Date,
-      }],
-    }
-  ],
-  QuizAttempts: [{
-    quizId: String,
-    answers: [{
-      questionId: String,
-      selectedOptions: [String],
-    }],
-    score: Number,
-    attemptedAt: Date,
-  }],
-})
+  completions: [ModuleCompletionSchema],
+  QuizAttempts: [QuizAttemptSchema],
+}, { _id: false });
 
 const CourseSchema = new mongoose.Schema({
   title: String,
