@@ -176,4 +176,21 @@ educatorsRouter.get(
     }
 )
 
+educatorsRouter.delete("/courses/:courseId", EducatorOnly, async (req: Req<void>, res: Res<{ success: boolean }>, next) => {
+    try {
+        // verify course exists and that the requesting educator owns it
+        const course = await CourseModel.findById(req.params.courseId)
+        if (!course) throw new APIError(404, 'Course not found')
+
+        if (course.instructor?.userId?.toString() !== req.user!.id) {
+            throw new APIError(403, 'Not authorized to delete this course')
+        }
+
+        await CourseModel.deleteOne({ _id: course._id })
+        res.json({ success: true })
+    } catch (err) {
+        next(err)
+    }
+})
+
 export { educatorsRouter }
