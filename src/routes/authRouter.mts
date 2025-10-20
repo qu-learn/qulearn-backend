@@ -12,7 +12,11 @@ import {
     Role,
 } from '../types.mts'
 
-const JWT_SECRET = 'jQFHpDTJEN0iH1t07gn6qIuV'
+if (!process.env.JWT_SECRET) {
+  throw new Error('JWT_SECRET environment variable is required')
+}
+
+const JWT_SECRET = process.env.JWT_SECRET
 
 passport.use('jwt', new JwtStrategy({
     jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),

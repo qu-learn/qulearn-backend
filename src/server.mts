@@ -1,3 +1,4 @@
+import 'dotenv/config'
 import express, { Router } from 'express'
 import logger from 'morgan'
 import cors from 'cors'

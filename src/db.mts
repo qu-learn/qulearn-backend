@@ -170,9 +170,9 @@ export type Circuit = HydratedDocumentFromSchema<typeof CircuitSchema>
 export type Network = HydratedDocumentFromSchema<typeof NetworkSchema>
 
 export async function initDb() {
-  await mongoose.connect(
-    //'mongodb://127.0.0.1:27017/qulearn',
-    'mongodb+srv://QuLearnAdmin:QuLearnAdmin@qulearncluster.jjsnnoj.mongodb.net/qulearn?retryWrites=true&w=majority&appName=QuLearnCluster',
-  )
+  if (!process.env.MONGODB_URL) {
+    throw new Error('MONGODB_URL environment variable is required')
+  }
+  await mongoose.connect(process.env.MONGODB_URL)
   console.log('Database connection initialized')
 }
