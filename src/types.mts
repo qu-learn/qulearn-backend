@@ -52,7 +52,7 @@ export function courseToResponse(course: Course, enrollments?: number, enrollmen
             fullName: course.instructor?.fullName || '',
         },
         jupyterNotebookUrl: course.jupyterNotebookUrl || undefined,
-        createdAt: course.createdAt.toISOString(),
+        createdAt: course.createdAt.toString(),
         modules: course.modules.map(module => ({
             id: module.id!,
             title: module.title!,
