@@ -70,7 +70,7 @@ coursesRouter.post('/', EducatorOnly, async (req: Req<ICreateCourseRequest>, res
     const courseData = await createCourseFromRequest(req.body, req.user!)
     const course = await CourseModel.create({
         ...courseData,
-        status: 'draft',
+        status: 'under-review',
     })
     res.json({
         course: courseToResponse(course),
