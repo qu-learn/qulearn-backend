@@ -328,13 +328,19 @@ courseAdminRouter.get("/courses", CourseAdminOnly, async (req: Req<void>, res: R
 courseAdminRouter.patch("/courses/:courseId/status", CourseAdminOnly, async (req: Req<IUpdateCourseStatusRequest>, res: Res<IUpdateCourseStatusResponse>, next) => {
     try {
         const { status, feedback } = req.body
-        if (!status || (status !== 'published' && status !== 'rejected')) {
-            throw new APIError(400, "Invalid status; must be 'published' or 'rejected'")
+        // Allow all valid CourseStatus values defined in the schema
+        const allowedStatuses = ['draft', 'under-review', 'published', 'rejected']
+
+        if (!status || typeof status !== 'string' || !allowedStatuses.includes(status)) {
+            throw new APIError(400, `Invalid status; must be one of: ${allowedStatuses.join(', ')}`)
         }
+
+        const update: any = { status }
+        if (feedback) update.feedback = feedback
 
         const updated = await CourseModel.findByIdAndUpdate(
             req.params.courseId,
-            { status, feedback: feedback || undefined },
+            update,
             { new: true }
         )
 
