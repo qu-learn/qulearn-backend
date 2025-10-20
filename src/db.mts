@@ -28,9 +28,27 @@ const ModuleSchema = new mongoose.Schema({
 })
 
 const EnrollmentSchema = new mongoose.Schema({
-  courseId: mongoose.Types.ObjectId,
+  courseId: String,
   progressPercentage: { type: Number, default: 0 },
   completedAt: Date,
+  completions: [
+    {
+      moduleId: String,
+      lessonIds: [{
+        lessonId: String,
+        completedAt: Date,
+      }],
+    }
+  ],
+  QuizAttempts: [{
+    quizId: String,
+    answers: [{
+      questionId: String,
+      selectedOptions: [String],
+    }],
+    score: Number,
+    attemptedAt: Date,
+  }],
 })
 
 const CourseSchema = new mongoose.Schema({
@@ -75,6 +93,13 @@ const UserSchema = new mongoose.Schema({
   achievements: [{
     badgeName: String,
     achievedAt: Date,
+  }],
+
+  activity: [{
+    date: Date,
+    lessonsCompleted: Number,
+    quizzesCompleted: Number,
+    simulationsRun: Number,
   }],
 
   enrollments: [EnrollmentSchema],
