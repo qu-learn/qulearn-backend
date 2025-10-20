@@ -55,7 +55,23 @@ const EnrollmentSchema = new Schema({
   completedAt: Date,
   completions: [ModuleCompletionSchema],
   QuizAttempts: [QuizAttemptSchema],
-}, { _id: false });
+  completedLessons: [String],
+})
+
+const GamificationSettingsSchema = new mongoose.Schema({
+  pointsPerLesson: { type: Number, default: 10 },
+  pointsPerQuiz: { type: Number, default: 20 },
+  pointsPerSimulation: { type: Number, default: 15 },
+  badges: [{
+    name: String,
+    description: String,
+    iconUrl: String,
+    criteria: {
+      type: { type: String, enum: ["courses-completed", "simulations-run", "quizzes-answered"] },
+      threshold: Number,
+    },
+  }],
+})
 
 const CourseSchema = new mongoose.Schema({
   title: String,
@@ -74,6 +90,7 @@ const CourseSchema = new mongoose.Schema({
   jupyterNotebookUrl: String,
   createdAt: { type: Date, default: Date.now },
   feedback: String,
+  gamificationSettings: GamificationSettingsSchema,
 })
 
 const UserSchema = new mongoose.Schema({
@@ -96,6 +113,14 @@ const UserSchema = new mongoose.Schema({
   gender: String,
   createdAt: { type: Date, default: Date.now },
 
+  // Gamification fields
+  points: { type: Number, default: 0 },
+  learningStreak: { type: Number, default: 0 },
+  lastActiveDate: Date,
+  quizzesAnswered: { type: Number, default: 0 },
+  simulationsRun: { type: Number, default: 0 },
+  completedSimulations: [{ type: mongoose.Types.ObjectId }], // Track which circuits/networks were run
+
   achievements: [{
     badgeName: String,
     achievedAt: Date,
@@ -110,21 +135,6 @@ const UserSchema = new mongoose.Schema({
 
   enrollments: [EnrollmentSchema],
   status: { type: String, enum: ["active", "suspended", "deactivated", "deleted"], default: "active" },
-})
-
-const GamificationSettingsSchema = new mongoose.Schema({
-  pointsPerLesson: Number,
-  pointsPerQuiz: Number,
-  pointsPerSimulation: Number,
-  badges: [{
-    name: String,
-    description: String,
-    iconUrl: String,
-    criteria: {
-      type: { type: String, enum: ["courses-completed", "simulations-run", "quizzes-answered"] },
-      threshold: Number,
-    },
-  }],
 })
 
 const CircuitSchema = new mongoose.Schema({
@@ -147,13 +157,11 @@ const NetworkSchema = new mongoose.Schema({
 
 export const UserModel = mongoose.model('User', UserSchema)
 export const CourseModel = mongoose.model('Course', CourseSchema)
-export const GamificationSettingsModel = mongoose.model('GamificationSettings', GamificationSettingsSchema)
 export const CircuitModel = mongoose.model('Circuit', CircuitSchema)
 export const NetworkModel = mongoose.model('Network', NetworkSchema)
 
 export type User = HydratedDocumentFromSchema<typeof UserSchema>
 export type Course = HydratedDocumentFromSchema<typeof CourseSchema>
-export type GamificationSettings = HydratedDocumentFromSchema<typeof GamificationSettingsSchema>
 export type Circuit = HydratedDocumentFromSchema<typeof CircuitSchema>
 export type Network = HydratedDocumentFromSchema<typeof NetworkSchema>
 

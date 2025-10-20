@@ -21,6 +21,7 @@ import {
 } from '../types.mts'
 import { AuthenticatedOnly, StudentOnly } from './authRouter.mts'
 import { CourseModel, UserModel } from '../db.mts'
+import { getDashboardData } from '../gamification-engine.mts'
 
 const studentsRouter = Router()
 
@@ -42,32 +43,16 @@ studentsRouter.get('/me/dashboard', StudentOnly, async (req: Req, res: Res<IGetM
         }
     }))
 
+    // Filter out null courses for gamification data
+    const validEnrollments = enrolledCourses.filter(e => e.course !== null) as IEnrollment[]
+
+    // Get gamification data from engine
+    const gamificationData = await getDashboardData(user, validEnrollments)
+
     res.json({
-        "points": 1,
-        "badges": [
-            {
-                "id": "b1",
-                "name": "QBronze",
-                "description": "Completed 3 Courses",
-                "iconUrl": "https://cdn-icons-png.flaticon.com/128/11167/11167978.png"
-            },
-            {
-                "id": "b2",
-                "name": "Quantum Explorer",
-                "description": "30+ simulations run",
-                "iconUrl": "https://cdn-icons-png.flaticon.com/128/744/744922.png"
-            },
-            {
-                "id": "b3",
-                "name": "Quantum Enthusiast",
-                "description": "Participated in 5 discussions",
-                "iconUrl": "https://cdn-icons-png.flaticon.com/128/9319/9319106.png"
-            }
-        ],
-        "learningStreak": 3,
-        "achievements": [],
-        "enrolledCourses": enrolledCourses as unknown as IEnrollment[],
-        "recommendedCourses": [],
+        ...gamificationData,
+        enrolledCourses: validEnrollments,
+        recommendedCourses: [],
     })
 })
 
