@@ -33,6 +33,7 @@ studentsRouter.get('/me/dashboard', StudentOnly, async (req: Req, res: Res<IGetM
     const user = await UserModel.findById(userId)
     if (!user) throw new APIError(404, 'User not found')
 
+    // Include completions and full activity history so gamification can compute streaks from subdocuments
     const enrolledCourses = await Promise.all((user.enrollments || []).map(async (enr) => {
         const course = enr.courseId
             ? await CourseModel.findById(enr.courseId).populate('instructor.userId', 'id fullName')
@@ -40,6 +41,20 @@ studentsRouter.get('/me/dashboard', StudentOnly, async (req: Req, res: Res<IGetM
         return {
             course: course ? courseToResponse(course) : null,
             progressPercentage: enr.progressPercentage || 0,
+            completedAt: enr.completedAt ? (new Date(enr.completedAt)).toISOString() : undefined,
+            // preserve module completions and ensure completedAt is ISO or undefined
+            completions: (enr.completions || []).map((mc: any) => ({
+                moduleId: mc.moduleId,
+                lessonIds: (mc.lessonIds || []).map((li: any) => ({
+                    lessonId: li.lessonId,
+                    completedAt: li.completedAt ? (new Date(li.completedAt)).toISOString() : undefined,
+                })),
+            })),
+            QuizAttempts: (enr as any).QuizAttempts || undefined,
+            activityHistory: (enr.activityHistory || []).map((h: any) => ({
+                date: h.date ? new Date(h.date).toISOString() : undefined,
+                lessonsCompleted: h.lessonsCompleted || 0,
+            })),
         }
     }))
 
@@ -81,7 +96,8 @@ studentsRouter.post('/enrollments', StudentOnly, async (req: Req<IEnrollInCourse
         throw new APIError(400, 'Already enrolled in this course')
     }
     user.enrollments = user.enrollments || []
-    user.enrollments.push({ courseId, progressPercentage: 0 })
+    // initialize activityHistory array on enrollment
+    user.enrollments.push({ courseId, progressPercentage: 0, activityHistory: [] })
     await user.save()
 
     const course = await CourseModel.findById(courseId)
@@ -91,6 +107,7 @@ studentsRouter.post('/enrollments', StudentOnly, async (req: Req<IEnrollInCourse
         enrollment: {
             course: course ? courseToResponse(course) : null,
             progressPercentage: 0,
+            activityHistory: [],
         } as IEnrollment
     })
 })
@@ -109,6 +126,10 @@ studentsRouter.get('/me/enrollments', StudentOnly, async (req: Req, res: Res<IGe
             course: course ? courseToResponse(course) : ({} as any),
             progressPercentage: enr.progressPercentage || 0,
             completedAt: enr.completedAt ? enr.completedAt.toISOString() : undefined,
+            activityHistory: (enr.activityHistory || []).map((h: any) => ({
+                date: h.date ? new Date(h.date).toISOString() : undefined,
+                lessonsCompleted: h.lessonsCompleted || 0,
+            })),
         } as IEnrollment
     }))
 
@@ -139,6 +160,10 @@ studentsRouter.get('/courses/:courseId', StudentOnly, async (req: Req, res: Res<
         completedAt: enrollment.completedAt ? enrollment.completedAt.toISOString() : undefined,
         completions: (enrollment as any).completions || undefined,
         QuizAttempts: (enrollment as any).QuizAttempts || undefined,
+        activityHistory: ((enrollment as any).activityHistory || []).map((h: any) => ({
+            date: h.date ? new Date(h.date).toISOString() : undefined,
+            lessonsCompleted: h.lessonsCompleted || 0,
+        })),
     } as unknown as IEnrollment
 
     res.json({
@@ -180,12 +205,25 @@ studentsRouter.post('/enrollments/:courseId/modules/:moduleId/lessons/:lessonId/
 
     // check if lesson already completed
     const existing = (modComp.lessonIds || []).some((l: any) => String(l.lessonId) === String(lessonId))
+    let completionDate = req.body?.completedAt ? new Date(req.body.completedAt) : new Date()
     if (!existing) {
         modComp.lessonIds = modComp.lessonIds || []
         modComp.lessonIds.push({
             lessonId,
-            completedAt: req.body?.completedAt ? new Date(req.body.completedAt) : new Date(),
+            completedAt: completionDate,
         })
+
+        // update activityHistory: increment count for the calendar date (UTC)
+        enrollment.activityHistory = enrollment.activityHistory || []
+        const dayKey = completionDate.toISOString().slice(0, 10)
+        let histIndex = enrollment.activityHistory.findIndex((h: any) => {
+            return new Date(h.date).toISOString().slice(0, 10) === dayKey
+        })
+        if (histIndex === -1) {
+            enrollment.activityHistory.push({ date: completionDate, lessonsCompleted: 1 })
+        } else {
+            enrollment.activityHistory[histIndex].lessonsCompleted = (enrollment.activityHistory[histIndex].lessonsCompleted || 0) + 1
+        }
     }
 
     // re-assign the mutated enrollment object back to the user's enrollments array
@@ -214,6 +252,10 @@ studentsRouter.post('/enrollments/:courseId/modules/:moduleId/lessons/:lessonId/
         completedAt: enrollment.completedAt ? enrollment.completedAt.toISOString() : undefined,
         completions: enrollment.completions,
         QuizAttempts: (enrollment as any).QuizAttempts || undefined,
+        activityHistory: (enrollment.activityHistory || []).map((h: any) => ({
+            date: h.date ? new Date(h.date).toISOString() : undefined,
+            lessonsCompleted: h.lessonsCompleted || 0,
+        })),
     } as unknown as IEnrollment
 
     res.json({ enrollment: enrollmentResp })

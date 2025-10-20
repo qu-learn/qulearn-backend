@@ -56,6 +56,10 @@ const EnrollmentSchema = new Schema({
   completions: [ModuleCompletionSchema],
   QuizAttempts: [QuizAttemptSchema],
   completedLessons: [String],
+  activityHistory: [{ // new: per-enrollment activity history
+    date: { type: Date, required: true },
+    lessonsCompleted: { type: Number, default: 0 },
+  }],
 })
 
 const GamificationSettingsSchema = new mongoose.Schema({

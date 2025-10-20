@@ -23,10 +23,71 @@ export async function getDashboardData(user: User, enrolledCourses: IEnrollment[
         achievedAt: achievement.achievedAt ? achievement.achievedAt.toISOString() : new Date().toISOString(),
     }))
 
+    // Build a set of unique YYYY-MM-DD strings from all enrollment activityHistory and completion subdocuments
+    const dateSet = new Set<string>()
+    for (const enr of enrolledCourses || []) {
+        // activityHistory entries
+        ;(enr.activityHistory || []).forEach((h: any) => {
+            if (h?.date && h.lessonsCompleted && h.lessonsCompleted > 0) {
+                const d = new Date(h.date)
+                if (!isNaN(d.getTime())) dateSet.add(d.toISOString().slice(0, 10))
+            }
+        })
+        // completions -> module -> lessonIds -> completedAt
+        ;(enr.completions || []).forEach((mc: any) => {
+            ;(mc.lessonIds || []).forEach((li: any) => {
+                if (li?.completedAt) {
+                    const d = new Date(li.completedAt)
+                    if (!isNaN(d.getTime())) dateSet.add(d.toISOString().slice(0, 10))
+                }
+            })
+        })
+    }
+
+    // Convert to sorted array of Date objects (ascending)
+    const dateArr = Array.from(dateSet).sort().map(d => new Date(d))
+
+    // Compute longest streak (scan sorted dates)
+    let longest = 0
+    if (dateArr.length > 0) {
+        let run = 1
+        for (let i = 1; i < dateArr.length; i++) {
+            const prev = dateArr[i - 1]
+            const cur = dateArr[i]
+            const diffDays = Math.round((cur.getTime() - prev.getTime()) / (24 * 60 * 60 * 1000))
+            if (diffDays === 1) {
+                run++
+            } else {
+                if (run > longest) longest = run
+                run = 1
+            }
+        }
+        if (run > longest) longest = run
+    }
+
+    // Compute current streak: count backwards from today while dates exist
+    let current = 0
+    const today = new Date()
+    // normalize to YYYY-MM-DD UTC
+    const isoToday = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString().slice(0, 10)
+    let cursor = new Date(isoToday)
+    while (true) {
+        const iso = cursor.toISOString().slice(0, 10)
+        if (dateSet.has(iso)) {
+            current++
+            cursor.setDate(cursor.getDate() - 1)
+        } else {
+            break
+        }
+    }
+
     return {
         points: user.points || 0,
         badges,
-        learningStreak: user.learningStreak || 0,
+        // return current streak as learningStreak for backward compatibility
+        learningStreak: current,
+        // also include longestStreak for clients that can use it
+        longestStreak: longest,
         achievements,
     }
 }
