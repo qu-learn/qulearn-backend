@@ -33,6 +33,7 @@ studentsRouter.get('/me/dashboard', StudentOnly, async (req: Req, res: Res<IGetM
     const user = await UserModel.findById(userId)
     if (!user) throw new APIError(404, 'User not found')
 
+    // Include completions and full activity history so gamification can compute streaks from subdocuments
     const enrolledCourses = await Promise.all((user.enrollments || []).map(async (enr) => {
         const course = enr.courseId
             ? await CourseModel.findById(enr.courseId).populate('instructor.userId', 'id fullName')
@@ -40,6 +41,16 @@ studentsRouter.get('/me/dashboard', StudentOnly, async (req: Req, res: Res<IGetM
         return {
             course: course ? courseToResponse(course) : null,
             progressPercentage: enr.progressPercentage || 0,
+            completedAt: enr.completedAt ? (new Date(enr.completedAt)).toISOString() : undefined,
+            // preserve module completions and ensure completedAt is ISO or undefined
+            completions: (enr.completions || []).map((mc: any) => ({
+                moduleId: mc.moduleId,
+                lessonIds: (mc.lessonIds || []).map((li: any) => ({
+                    lessonId: li.lessonId,
+                    completedAt: li.completedAt ? (new Date(li.completedAt)).toISOString() : undefined,
+                })),
+            })),
+            QuizAttempts: (enr as any).QuizAttempts || undefined,
             activityHistory: (enr.activityHistory || []).map((h: any) => ({
                 date: h.date ? new Date(h.date).toISOString() : undefined,
                 lessonsCompleted: h.lessonsCompleted || 0,
