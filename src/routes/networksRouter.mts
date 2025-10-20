@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { NetworkModel } from '../db.mts'
 import { AuthenticatedOnly } from './authRouter.mts'
 import { Req, Res, mockHandler, APIError, ICreateNetworkRequest, IUpdateNetworkRequest } from '../types.mts'
+import { trackSimulationRun } from '../gamification-engine.mts'
 
 const networksRouter = Router()
 
@@ -49,12 +50,16 @@ networksRouter.post('/', AuthenticatedOnly, async (req: Req<ICreateNetworkReques
 // GET /api/v1/networks/:id - Get a specific network (visible to all logged-in users)
 networksRouter.get('/:id', AuthenticatedOnly, async (req: Req<void>, res: Res) => {
     const networkId = req.params.id
+    const userId = req.user!.id
     
     const network = await NetworkModel.findById(networkId).lean()
     
     if (!network) {
         throw new APIError(404, 'Network not found')
     }
+    
+    // Track simulation run for students when they load a network
+    await trackSimulationRun(userId, networkId, 'network')
     
     res.json({
         network: {

@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { CircuitModel } from '../db.mts'
 import { AuthenticatedOnly } from './authRouter.mts'
 import { Req, Res, mockHandler, APIError, ICreateCircuitRequest, IUpdateCircuitRequest } from '../types.mts'
+import { trackSimulationRun } from '../gamification-engine.mts'
 
 const circuitsRouter = Router()
 
@@ -30,12 +31,16 @@ circuitsRouter.post('/', AuthenticatedOnly, async (req: Req<ICreateCircuitReques
 // GET /api/v1/circuits/:id - Get a specific circuit (visible to all logged-in users)
 circuitsRouter.get('/:id', AuthenticatedOnly, async (req: Req<void>, res: Res) => {
     const circuitId = req.params.id
+    const userId = req.user!.id
 
     const circuit = await CircuitModel.findById(circuitId).lean()
 
     if (!circuit) {
         throw new APIError(404, 'Circuit not found')
     }
+
+    // Track simulation run for students when they load a circuit
+    await trackSimulationRun(userId, circuitId, 'circuit')
 
     res.json({
         circuit: {

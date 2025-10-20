@@ -18,7 +18,7 @@ import {
 } from '../types.mts'
 import { AuthenticatedOnly, StudentOnly } from './authRouter.mts'
 import { CourseModel, UserModel } from '../db.mts'
-import { getDashboardData } from './achievementsRouter.mts'
+import { getDashboardData } from '../gamification-engine.mts'
 
 const studentsRouter = Router()
 
@@ -40,10 +40,16 @@ studentsRouter.get('/me/dashboard', AuthenticatedOnly, async (req: Req, res: Res
         }
     }))
 
+    // Filter out null courses for gamification data
+    const validEnrollments = enrolledCourses.filter(e => e.course !== null) as IEnrollment[]
+
+    // Get gamification data from engine
+    const gamificationData = await getDashboardData(user, validEnrollments)
+
     res.json({
-        ...getDashboardData(req.user!),
-        "enrolledCourses": enrolledCourses,
-        "recommendedCourses": [],
+        ...gamificationData,
+        enrolledCourses: validEnrollments,
+        recommendedCourses: [],
     })
 })
 
