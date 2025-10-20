@@ -202,46 +202,54 @@ courseAdminRouter.get("/dashboard", CourseAdminOnly, async (req: Req<void>, res:
         const newRegistrationsThisMonth = await UserModel.countDocuments({ createdAt: { $gte: startOfMonth } })
         const pendingApprovals = await CourseModel.countDocuments({ status: 'under-review' })
 
-        // enrollmentsPerMonth: last 6 months based on enrollment.completedAt where present
+        // enrollmentsPerMonth: last 6 months based on enrollment.enrolledAt in Course.enrollments
         const monthsBack = 6
-        const months: { month: string; count: number }[] = []
+        const months: { monthLabel: string; year: number; monthNum: number; count: number }[] = []
         for (let i = monthsBack - 1; i >= 0; i--) {
             const date = new Date(now.getFullYear(), now.getMonth() - i, 1)
-            const monthLabel = date.toLocaleString('en-US', { month: 'short', year: 'numeric' })
-            months.push({ month: monthLabel, count: 0 })
+            months.push({
+                monthLabel: date.toLocaleString('en-US', { month: 'short', year: 'numeric' }),
+                year: date.getFullYear(),
+                monthNum: date.getMonth() + 1, // Mongo $month is 1-based
+                count: 0,
+            })
         }
 
-        // Use MongoDB aggregation to count completed enrollments per month for the last 6 months
-        const startDate = new Date(now.getFullYear(), now.getMonth() - (monthsBack - 1), 1);
-        const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-        const enrollmentCounts = await UserModel.aggregate([
+        const startDate = new Date(now.getFullYear(), now.getMonth() - (monthsBack - 1), 1)
+        const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 1)
+
+        // Aggregate counts from Course.enrollments.enrolledAt for the given window
+        const enrollmentCounts = await CourseModel.aggregate([
             { $unwind: "$enrollments" },
-            { $match: { "enrollments.completedAt": { $gte: startDate, $lt: endDate } } },
+            { $match: { "enrollments.enrolledAt": { $gte: startDate, $lt: endDate } } },
             {
                 $group: {
                     _id: {
-                        year: { $year: "$enrollments.completedAt" },
-                        month: { $month: "$enrollments.completedAt" }
+                        year: { $year: "$enrollments.enrolledAt" },
+                        month: { $month: "$enrollments.enrolledAt" }
                     },
                     count: { $sum: 1 }
                 }
             }
-        ]);
-        // Map aggregation results to months array
-        for (const m of months) {
-            const [monStr, yearStr] = m.month.split(' ');
-            const mon = new Date(`${monStr} 1, ${yearStr}`).getMonth() + 1; // JS months are 0-based, Mongo $month is 1-based
-            const yr = parseInt(yearStr, 10);
-            const found = enrollmentCounts.find(ec => ec._id.year === yr && ec._id.month === mon);
-            m.count = found ? found.count : 0;
+        ])
+
+        // Map aggregation results into our months array
+        for (const ec of enrollmentCounts) {
+            const yr = ec._id.year
+            const mon = ec._id.month
+            const idx = months.findIndex(m => m.year === yr && m.monthNum === mon)
+            if (idx !== -1) months[idx].count = ec.count
         }
+
+        // Convert to expected response shape
+        const enrollmentsPerMonth = months.map(m => ({ month: m.monthLabel, count: m.count }))
 
         res.json({
             totalUsers,
             activeCourses,
             newRegistrationsThisMonth,
             pendingApprovals,
-            enrollmentsPerMonth: months,
+            enrollmentsPerMonth,
         })
     } catch (err) {
         next(err)
@@ -309,13 +317,43 @@ courseAdminRouter.get("/courses", CourseAdminOnly, async (req: Req<void>, res: R
         }
 
         // Build response with avgCompletionRate per course
+        // Prepare last 6 months labels
+        const now = new Date()
+        const monthsBack = 6
+        const months: { monthLabel: string; year: number; monthNum: number }[] = []
+        for (let i = monthsBack - 1; i >= 0; i--) {
+            const date = new Date(now.getFullYear(), now.getMonth() - i, 1)
+            months.push({
+                monthLabel: date.toLocaleString('en-US', { month: 'short', year: 'numeric' }),
+                year: date.getFullYear(),
+                monthNum: date.getMonth() + 1,
+            })
+        }
+
         res.json({
             courses: courses.map(course => {
                 const s = stats.get(course._id.toString()) || { count: 0, history: [], completionSum: 0, completionCount: 0 }
                 const avg = s.completionCount > 0 ? (s.completionSum / s.completionCount) : 0
+
+                // Build per-course monthly enrollment counts by scanning course.enrollments
+                const counts = new Map<string, number>()
+                ;(course.enrollments || []).forEach((en: any) => {
+                    if (!en || !en.enrolledAt) return
+                    const d = new Date(en.enrolledAt)
+                    if (isNaN(d.getTime())) return
+                    const key = `${d.getFullYear()}-${d.getMonth() + 1}`
+                    counts.set(key, (counts.get(key) || 0) + 1)
+                })
+
+                const monthlyEnrollments = months.map(m => ({
+                    month: m.monthLabel,
+                    count: counts.get(`${m.year}-${m.monthNum}`) || 0,
+                }))
+
                 return {
                     course: courseToResponse(course, s.count, s.history),
-                    avgCompletionRate: Math.round(avg * 100) / 100 // round to 2 decimals
+                    avgCompletionRate: Math.round(avg * 100) / 100, // round to 2 decimals
+                    monthlyEnrollments,
                 }
             })
         })
