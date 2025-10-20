@@ -1,6 +1,5 @@
-// Re-export frontend shared types and import them for server helpers
-export * from '../../qulearn-frontend/src/utils/types'
-import type { IUser, ICourse } from '../../qulearn-frontend/src/utils/types'
+export * from './types-frontend.mjs'
+import type { IUser, ICourse } from './types-frontend.mjs'
 
 import { Request, Response } from 'express'
 import { User, Course } from './db.mts'

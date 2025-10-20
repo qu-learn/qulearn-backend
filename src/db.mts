@@ -1,5 +1,6 @@
 import mongoose, { Mongoose, Schema } from 'mongoose'
 import { HydratedDocumentFromSchema } from 'mongoose'
+import bcrypt from 'bcrypt'
 
 const QuestionSchema = new mongoose.Schema({
   text: String,
@@ -171,4 +172,22 @@ export async function initDb() {
   }
   await mongoose.connect(process.env.MONGODB_URL)
   console.log('Database connection initialized')
+  
+  // Check if any system administrator exists
+  const adminCount = await UserModel.countDocuments({ role: 'system-administrator' })
+  if (adminCount === 0) {
+    console.log('No system administrator found. Creating default admin...')
+    const defaultAdminEmail = 'admin@localhost'
+    const defaultAdminPassword = 'ChangeMe123!'
+    
+    const hash = await bcrypt.hash(defaultAdminPassword, 10)
+    await UserModel.create({
+      email: defaultAdminEmail,
+      passwordHash: hash,
+      fullName: 'System Administrator',
+      role: 'system-administrator',
+    })
+    console.log(`Default admin created: ${defaultAdminEmail}`)
+    console.log('⚠️  IMPORTANT: Change the default admin password immediately!')
+  }
 }
