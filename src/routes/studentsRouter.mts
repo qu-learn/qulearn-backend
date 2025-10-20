@@ -158,43 +158,54 @@ studentsRouter.post('/enrollments/:courseId/modules/:moduleId/lessons/:lessonId/
     const user = await UserModel.findById(userId)
     if (!user) throw new APIError(404, 'User not found')
 
-    const enrollment = (user.enrollments || []).find(e => e.courseId?.toString() === courseId)
-    if (!enrollment) throw new APIError(403, 'Not enrolled in this course')
+    // find enrollment by index so we can re-assign later
+    const enrollmentIndex = (user.enrollments || []).findIndex(e => String(e.courseId) === String(courseId))
+    if (enrollmentIndex === -1) throw new APIError(403, 'Not enrolled in this course')
 
     const course = await CourseModel.findById(courseId)
     if (!course) throw new APIError(404, 'Course not found')
 
-    // ensure completions structure
+    // work on a mutable reference and re-assign it back to the document array
+    const enrollment = user.enrollments![enrollmentIndex] as any
     enrollment.completions = enrollment.completions || []
 
-    // find or create module completion entry
-    let modComp = enrollment.completions.find((m: any) => m.moduleId === moduleId)
-    if (!modComp) {
-        modComp = { moduleId, lessonIds: [] }
-        enrollment.completions.push(modComp)
+    // find or create module completion by index
+    let moduleIndex = enrollment.completions.findIndex((m: any) => String(m.moduleId) === String(moduleId))
+    if (moduleIndex === -1) {
+        enrollment.completions.push({ moduleId, lessonIds: [] })
+        moduleIndex = enrollment.completions.length - 1
     }
 
-    // avoid duplicate lesson completion
-    const existing = (modComp.lessonIds || []).some((l: any) => l.lessonId === lessonId)
+    const modComp = enrollment.completions[moduleIndex] as any
+
+    // check if lesson already completed
+    const existing = (modComp.lessonIds || []).some((l: any) => String(l.lessonId) === String(lessonId))
     if (!existing) {
         modComp.lessonIds = modComp.lessonIds || []
-        modComp.lessonIds.push({ lessonId, completedAt: req.body?.completedAt ? new Date(req.body.completedAt) : new Date() })
+        modComp.lessonIds.push({
+            lessonId,
+            completedAt: req.body?.completedAt ? new Date(req.body.completedAt) : new Date(),
+        })
     }
 
-    // recalculate completed lessons count and total lessons in course
+    // re-assign the mutated enrollment object back to the user's enrollments array
+    user.enrollments![enrollmentIndex] = enrollment
+
+    // recalc progress
     const totalLessons = (course.modules || []).reduce((sum, m) => sum + ((m.lessons || []).length || 0), 0)
-    const completedLessonIds = new Set<string>();
-    (enrollment.completions || []).forEach((m: any) => {
-        (m.lessonIds || []).forEach((l: any) => completedLessonIds.add(l.lessonId))
+    const completedLessonIds = new Set<string>()
+    ;(enrollment.completions || []).forEach((m: any) => {
+        (m.lessonIds || []).forEach((l: any) => completedLessonIds.add(String(l.lessonId)))
     })
     const completedCount = completedLessonIds.size
     enrollment.progressPercentage = totalLessons > 0 ? Math.round((completedCount / totalLessons) * 100) : 0
 
-    // if all lessons completed, set completedAt
     if (totalLessons > 0 && completedCount >= totalLessons && !enrollment.completedAt) {
         enrollment.completedAt = new Date()
     }
 
+    // mark modified and save once
+    user.markModified('enrollments')
     await user.save()
 
     const enrollmentResp: IEnrollment = {
