@@ -78,6 +78,11 @@ const GamificationSettingsSchema = new mongoose.Schema({
   }],
 })
 
+const CourseEnrollmentSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  enrolledAt: { type: Date, default: Date.now },
+})
+
 const CourseSchema = new mongoose.Schema({
   title: String,
   subtitle: String,
@@ -96,6 +101,7 @@ const CourseSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
   feedback: String,
   gamificationSettings: GamificationSettingsSchema,
+  enrollments: [CourseEnrollmentSchema],
 })
 
 const UserSchema = new mongoose.Schema({

@@ -100,12 +100,25 @@ studentsRouter.post('/enrollments', StudentOnly, async (req: Req<IEnrollInCourse
     user.enrollments.push({ courseId, progressPercentage: 0, activityHistory: [] })
     await user.save()
 
+    // Also add enrollment to the Course document's enrollments array
     const course = await CourseModel.findById(courseId)
+    if (course) {
+        // avoid duplicate on course side
+        const alreadyInCourse = (course.enrollments || []).some(e => String(e.userId) === String(user._id))
+        if (!alreadyInCourse) {
+            course.enrollments = course.enrollments || []
+            course.enrollments.push({ userId: user._id, enrolledAt: new Date() })
+            await course.save()
+        }
+    }
+
+    // populate instructor for response (preserve original behavior)
+    const courseForResp = await CourseModel.findById(courseId)
         .populate('instructor.userId', 'id fullName')
 
     res.json({
         enrollment: {
-            course: course ? courseToResponse(course) : null,
+            course: courseForResp ? courseToResponse(courseForResp) : null,
             progressPercentage: 0,
             activityHistory: [],
         } as IEnrollment
