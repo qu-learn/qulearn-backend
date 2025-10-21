@@ -183,7 +183,7 @@ sysAdminRouter.get("/system-metrics", SysAdminOnly, async (req: Req<void>, res: 
 	}
     
     // Mock active connections
-    const activeConnections = Math.floor(Math.random() * 100) + 300;
+    const activeConnections = 1;//Math.floor(Math.random() * 100) + 300;
     
     res.json({
       cpuUsage,
