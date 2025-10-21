@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { IAddCourseAdministratorRequest, IAddCourseAdministratorResponse, IGetCourseAdministratorsResponse, mockHandler, Req, Res, userToResponse, APIError, IGetCourseAdministratorResponse, IUpdateCourseAdministratorResponse, IDeleteCourseAdministratorResponse } from "../types.mts";
+import { IAddCourseAdministratorRequest, IAddCourseAdministratorResponse, IGetCourseAdministratorsResponse, mockHandler, Req, Res, userToResponse, APIError, IGetCourseAdministratorResponse, IUpdateCourseAdministratorResponse, IDeleteCourseAdministratorResponse, IGetSysAdminUsersResponse, IGetSysAdminUsersRequest, IGetSystemMetricsResponse, IUpdateUserBySysAdminResponse } from "../types.mts";
 import { SysAdminOnly } from "./authRouter.mts";
 import bcrypt from 'bcrypt'
 import { UserModel } from "../db.mts";
@@ -13,6 +13,31 @@ sysAdminRouter.get("/course-admins", SysAdminOnly, async (req: Req<void>, res: R
     res.json({
         cAdmins: courseAdmins.map(userToResponse),
     })
+})
+
+sysAdminRouter.get("/users", SysAdminOnly, async (req: Req<IGetSysAdminUsersRequest>, res: Res<IGetSysAdminUsersResponse>) => {
+    // Parse pagination params with defaults
+    const rawPage = (req.query as any)?.page;
+    const rawPageSize = (req.query as any)?.pageSize;
+
+    const page = Math.max(1, parseInt(String(rawPage ?? '1'), 10) || 1);
+    const pageSize = Math.min(100, Math.max(1, parseInt(String(rawPageSize ?? '20'), 10) || 20));
+
+    // Optional: add filters in future (e.g., role, search)
+    const filter = {};
+
+    const totalUsers = await UserModel.countDocuments(filter);
+    const totalPages = Math.max(1, Math.ceil(totalUsers / pageSize));
+
+    const users = await UserModel.find(filter)
+        .skip((page - 1) * pageSize)
+        .limit(pageSize);
+
+    res.json({
+        users: users.map(userToResponse),
+        totalPages,
+        currentPage: page,
+    });
 })
 
 sysAdminRouter.post("/course-admins", SysAdminOnly, async (req: Req<IAddCourseAdministratorRequest>, res: Res<IAddCourseAdministratorResponse>) => {
@@ -147,12 +172,7 @@ sysAdminRouter.delete("/course-admins/:id", SysAdminOnly, async (req: Req<void, 
 })
 
 // New endpoint for system metrics
-sysAdminRouter.get("/system-metrics", SysAdminOnly, async (req: Req<void>, res: Res<{
-  cpuUsage: number;
-  ramUsage: number;
-  diskUsage: number;
-  activeConnections: number;
-}>) => {
+sysAdminRouter.get("/system-metrics", SysAdminOnly, async (req: Req<void>, res: Res<IGetSystemMetricsResponse>) => {
   try {
     // Get CPU usage
     const cpus = os.cpus();
@@ -176,20 +196,37 @@ sysAdminRouter.get("/system-metrics", SysAdminOnly, async (req: Req<void>, res: 
     // Get disk usage (for the current drive)
     let diskUsage = 0;
     try {
-		const diskSpace = await checkDiskSpace(process.cwd());
-		diskUsage = Math.round(((diskSpace.size - diskSpace.free) / diskSpace.size) * 100);
-	} catch (error) {
-		diskUsage = 0; // Fallback value
-	}
+      const diskSpace = await checkDiskSpace(process.cwd());
+      diskUsage = Math.round(((diskSpace.size - diskSpace.free) / diskSpace.size) * 100);
+    } catch (error) {
+      diskUsage = 0; // Fallback value
+    }
     
     // Mock active connections
-    const activeConnections = 1;//Math.floor(Math.random() * 100) + 300;
+    const activeConnections = 1; // placeholder
     
+    // Build cumulative users for last 6 months (oldest -> newest)
+    const months: { monthLabel: string; endOfMonth: Date }[] = []
+    const now = new Date()
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1))
+      const year = d.getUTCFullYear()
+      const month = d.getUTCMonth()
+      // end of month: last millisecond of the month in UTC
+      const endOfMonth = new Date(Date.UTC(year, month + 1, 0, 23, 59, 59, 999))
+      const monthLabel = d.toLocaleString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' })
+      months.push({ monthLabel, endOfMonth })
+    }
+
+    const counts = await Promise.all(months.map(m => UserModel.countDocuments({ createdAt: { $lte: m.endOfMonth } })))
+    const cumulativeUsers = months.map((m, idx) => ({ month: m.monthLabel, count: counts[idx] }))
+
     res.json({
       cpuUsage,
       ramUsage,
       diskUsage,
-      activeConnections
+      activeConnections,
+      cumulativeUsers,
     });
   } catch (error) {
     console.error('Error fetching system metrics:', error);
@@ -198,9 +235,71 @@ sysAdminRouter.get("/system-metrics", SysAdminOnly, async (req: Req<void>, res: 
       cpuUsage: 0,
       ramUsage: 0,
       diskUsage: 0,
-      activeConnections: 0
+      activeConnections: 0,
+      cumulativeUsers: [],
     });
   }
 });
+
+// New: update arbitrary user by sys-admin
+sysAdminRouter.patch("/users/:userId", SysAdminOnly, async (req: Req<IAddCourseAdministratorRequest, { userId: string }>, res: Res<IUpdateUserBySysAdminResponse>) => {
+	const { userId } = req.params;
+	const data = req.body;
+
+	// Validate provided fields only
+	if (data.fullName !== undefined && (typeof data.fullName !== 'string' || !data.fullName.trim())) {
+		throw new APIError(400, 'Full Name is required.')
+	}
+	if (data.email !== undefined) {
+		if (typeof data.email !== 'string' || !/^\S+@\S+\.\S+$/.test(data.email)) {
+			throw new APIError(400, 'Valid email is required.')
+		}
+		const existing = await UserModel.findOne({ email: data.email })
+		if (existing && existing.id !== userId) {
+			throw new APIError(400, 'Email already used.')
+		}
+	}
+	if (data.contactNumber !== undefined && data.contactNumber && !/^\d{10,15}$/.test(data.contactNumber)) {
+		throw new APIError(400, 'Contact Number should be 10-15 digits.')
+	}
+	if (data.nationalId !== undefined && data.nationalId && data.nationalId.length < 5) {
+		throw new APIError(400, 'National ID is too short.')
+	}
+	if (data.residentialAddress !== undefined && data.residentialAddress && data.residentialAddress.length < 5) {
+		throw new APIError(400, 'Address is too short.')
+	}
+	if (data.gender !== undefined && !['male', 'female', 'other'].includes(data.gender)) {
+		throw new APIError(400, 'Gender is required.')
+	}
+	if (data.password !== undefined && (typeof data.password !== 'string' || data.password.length < 6)) {
+		throw new APIError(400, 'Password must be at least 6 characters.')
+	}
+	if (data.accountStatus !== undefined && !['active', 'suspended', 'deactivated', 'deleted'].includes(data.accountStatus as string)) {
+		throw new APIError(400, 'Invalid account status.')
+	}
+
+	const updatePayload: any = {}
+	if (data.fullName !== undefined) updatePayload.fullName = data.fullName
+	if (data.email !== undefined) updatePayload.email = data.email
+	if (data.contactNumber !== undefined) updatePayload.contactNumber = data.contactNumber
+	if (data.nationalId !== undefined) updatePayload.nationalId = data.nationalId
+	if (data.residentialAddress !== undefined) updatePayload.residentialAddress = data.residentialAddress
+	if (data.gender !== undefined) updatePayload.gender = data.gender
+	if (data.password !== undefined) {
+		updatePayload.passwordHash = await bcrypt.hash(data.password as string, 10)
+	}
+	// map accountStatus -> status on user doc
+	if (data.accountStatus !== undefined) updatePayload.status = data.accountStatus
+
+	const user = await UserModel.findById(userId)
+	if (!user) {
+		throw new APIError(404, 'User not found.')
+	}
+
+	Object.assign(user, updatePayload)
+	await user.save()
+
+	res.json({ user: userToResponse(user) })
+})
 
 export { sysAdminRouter };
