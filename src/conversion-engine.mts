@@ -48,9 +48,9 @@ export async function runConversionEngine(jupyterNotebookUrl: string): Promise<I
         }
     }
 
-    const lessons = notebook.cells
-        .filter(cell => cell.cell_type === 'markdown' || cell.cell_type === 'code')
-        .map((cell, index) => {
+    const lessons = (notebook.cells as any[])
+        .filter((cell: any) => cell.cell_type === 'markdown' || cell.cell_type === 'code')
+        .map((cell: any, index: number) => {
             if (!cell.source || !Array.isArray(cell.source)) {
                 throw new Error('Invalid cell source data');
             }
@@ -62,6 +62,7 @@ export async function runConversionEngine(jupyterNotebookUrl: string): Promise<I
             }
 
             const lesson: ILesson = {
+                // This ID is temporary for client-side use; MongoDB will assign a stable _id when persisted
                 id: crypto.randomUUID(),
                 title: cell.metadata?.title || 'Untitled Lesson',
                 content: cell.source.join(''),
@@ -71,6 +72,7 @@ export async function runConversionEngine(jupyterNotebookUrl: string): Promise<I
         });
 
     const module: IModule = {
+        // Temporary client-side ID; persistence will rely on MongoDB _id
         id: crypto.randomUUID(),
         title: moduleTitle,
         lessons,

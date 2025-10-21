@@ -18,22 +18,21 @@ import {
     Req,
     Res,
 } from '../types.mts'
-import { CourseModel, User, UserModel } from '../db.mts'
+import { CourseModel, UserModel } from '../db.mts'
+import type { User } from '../db.mts'
 import { EducatorOnly, AuthenticatedOnly } from './authRouter.mts'
 import { runConversionEngine } from '../conversion-engine.mts'
 import { calculateQuizScore, awardPointsForQuiz, markLessonCompleted } from '../gamification-engine.mts'
  
 const coursesRouter = Router()
  
-async function createCourseFromRequest(request: ICreateCourseRequest, user: User) {
-    if (request.jupyterNotebookUrl) {
-        try {
-            request.modules = await runConversionEngine(request.jupyterNotebookUrl)
-        } catch (error) {
-            throw new APIError(400, 'Invalid Jupyter Notebook URL or content')
-        }
-    }
-    return {
+async function createCourseFromRequest(
+    request: ICreateCourseRequest,
+    user: User,
+    opts: { autoGenerateModulesFromNotebook?: boolean; includeModulesFromRequest?: boolean } = {}
+) {
+    const { autoGenerateModulesFromNotebook = true, includeModulesFromRequest = false } = opts
+    const result: any = {
         title: request.title,
         subtitle: request.subtitle,
         description: request.description,
@@ -43,11 +42,24 @@ async function createCourseFromRequest(request: ICreateCourseRequest, user: User
         jupyterNotebookUrl: request.jupyterNotebookUrl,
         thumbnailUrl: request.thumbnailImageUrl,
         instructor: {
-            userId: user.id,
-            fullName: user.fullName,
+            userId: (user as any)._id,
+            fullName: (user as any).fullName,
         },
-        modules: request.modules,
     }
+
+    // Only include modules when explicitly provided, or when generating from a notebook (on create)
+    if (autoGenerateModulesFromNotebook && request.jupyterNotebookUrl) {
+        try {
+            result.modules = await runConversionEngine(request.jupyterNotebookUrl)
+        } catch (error) {
+            throw new APIError(400, 'Invalid Jupyter Notebook URL or content')
+        }
+    } else if (includeModulesFromRequest && Array.isArray(request.modules)) {
+        // Respect provided modules only if explicitly allowed via option
+        result.modules = request.modules
+    }
+
+    return result
 }
 
 coursesRouter.get('/', async (req: Req<void>, res: Res<IGetCoursesNoModulesResponse>) => {
@@ -56,8 +68,9 @@ coursesRouter.get('/', async (req: Req<void>, res: Res<IGetCoursesNoModulesRespo
         .sort({ title: 1 })
         .lean()
 
+    const hydrated = courses.map((c) => CourseModel.hydrate({ ...c, modules: [] }))
     res.json({
-        courses: courses.map((c) => courseToResponse({ ...c, modules: [] })),
+        courses: hydrated.map((c) => courseToResponse(c)),
     })
 })
 
@@ -73,7 +86,11 @@ coursesRouter.get('/:courseId', async (req: Req<void>, res: Res<IGetCourseByIdRe
 })
 
 coursesRouter.post('/', EducatorOnly, async (req: Req<ICreateCourseRequest>, res: Res<ICreateCourseResponse>) => {
-    const courseData = await createCourseFromRequest(req.body, req.user!)
+    const courseData = await createCourseFromRequest(
+        req.body,
+        req.user as any as User,
+        { autoGenerateModulesFromNotebook: true, includeModulesFromRequest: true }
+    )
     const course = await CourseModel.create({
         ...courseData,
         status: 'under-review',
@@ -85,11 +102,17 @@ coursesRouter.post('/', EducatorOnly, async (req: Req<ICreateCourseRequest>, res
 
 coursesRouter.patch('/:courseId', EducatorOnly, async (req: Req<IUpdateCourseRequest>, res: Res<IUpdateCourseResponse>) => {
     const courseId = req.params.courseId as string
-    const courseData = await createCourseFromRequest(req.body.course, req.user!)
+    // Build update without auto-generating modules from notebook to preserve existing subdocument _ids
+    const courseData = await createCourseFromRequest(
+        req.body.course,
+        req.user as any as User,
+        { autoGenerateModulesFromNotebook: false, includeModulesFromRequest: false }
+    )
+
     const course = await CourseModel.findOneAndUpdate(
         {
             _id: courseId,
-            'instructor.userId': req.user!.id,
+            'instructor.userId': (req.user as any)._id,
         },
         courseData,
         { new: true },
@@ -108,7 +131,7 @@ coursesRouter.put('/:courseId/gamification', EducatorOnly, async (req: Req<IUpda
     // Verify the course exists and the user is the instructor
     const course = await CourseModel.findOne({
         _id: courseId,
-        'instructor.userId': req.user!.id,
+        'instructor.userId': (req.user as any)._id,
     })
     
     if (!course) {
@@ -142,7 +165,7 @@ coursesRouter.put('/:courseId/gamification', EducatorOnly, async (req: Req<IUpda
 coursesRouter.post('/:courseId/lessons/:lessonId/quiz/submit', AuthenticatedOnly, async (req: Req<ISubmitQuizRequest>, res: Res<ISubmitQuizResponse>) => {
     const courseId = req.params.courseId as string
     const lessonId = req.params.lessonId as string
-    const userId = req.user!.id
+    const userId = ((req.user as any)?._id ?? (req.user as any)?.id)?.toString?.() ?? (req.user as any)
 
     // Find the course
     const course = await CourseModel.findById(courseId)
@@ -208,7 +231,7 @@ coursesRouter.post('/:courseId/lessons/:lessonId/quiz/submit', AuthenticatedOnly
         } else {
             // If the user isn't enrolled (unlikely), create a lightweight enrollment entry and store the attempt
             (user.enrollments as any[]).push({
-                courseId: mongoose.Types.ObjectId(courseId),
+                courseId: new mongoose.Types.ObjectId(courseId),
                 progressPercentage: 0,
                 enrolledAt: new Date(),
                 QuizAttempts: [quizAttempt],
