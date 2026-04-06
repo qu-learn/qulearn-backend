@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "tsx --watch src/server.mts",
-    "start": "pnpm tsx src/server.mts"
+    "start": "pnpm tsx src/server.mts",
+    "heroku-prebuild": "git clone -b docker --single-branch https://github.com/qu-learn/qulearn-frontend.git /tmp/qulearn-frontend && cp /tmp/qulearn-frontend/src/utils/types.ts ./src/types-frontend.mts && rm -rf /tmp/qulearn-frontend"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
